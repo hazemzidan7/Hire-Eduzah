@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Eduzah — Hiring Form</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="header-brand">
+      <img src="img/logo.png" alt="Eduzah" class="logo-img" width="200" height="48" decoding="async" id="siteLogo" />
+      <img src="img/eduzah-logo.svg" alt="Eduzah" class="logo-img logo-img--svg" width="200" height="48" hidden id="siteLogoSvg" />
+      <div class="logo-fallback" id="logoText" hidden aria-hidden="true">eduzah</div>
+    </div>
+    <div class="subtitle">انضم لفريقنا — قدّم على وظيفة</div>
+  </div>
+  <div class="progress-bar" id="progressBar"></div>
+  <div class="card" id="formCard">
+    <div id="stepContent"></div>
+  </div>
+</div>
+<script>
+(function () {
+  var img = document.getElementById('siteLogo');
+  var svg = document.getElementById('siteLogoSvg');
+  var text = document.getElementById('logoText');
+  if (!img) return;
+  var paths = ['img/logo.png', 'img/logo_1.PNG', 'logo.png'];
+  var i = 0;
+  img.addEventListener('error', function () {
+    if (i < paths.length) {
+      img.src = paths[i++];
+      return;
+    }
+    img.hidden = true;
+    if (svg) {
+      svg.hidden = false;
+      svg.addEventListener('error', function () {
+        svg.hidden = true;
+        if (text) text.hidden = false;
+      }, { once: true });
+      return;
+    }
+    if (text) text.hidden = false;
+  });
+})();
+</script>
+<script src="national-id-parser.js"></script>
+<script src="form.js"></script>
+</body>
+</html>
