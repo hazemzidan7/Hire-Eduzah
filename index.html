@@ -1,49 +1,45 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" id="htmlRoot">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Eduzah — Hiring Form</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 <div class="wrap">
-  <div class="header">
+  <header class="header">
     <div class="header-brand">
-      <img src="img/logo.png" alt="Eduzah" class="logo-img" width="200" height="48" decoding="async" id="siteLogo" />
-      <img src="img/eduzah-logo.svg" alt="Eduzah" class="logo-img logo-img--svg" width="200" height="48" hidden id="siteLogoSvg" />
-      <div class="logo-fallback" id="logoText" hidden aria-hidden="true">eduzah</div>
+      <img src="img/eduzah-logo.svg" alt="Eduzah" class="logo-img" width="168" height="40" decoding="async" id="siteLogo" />
     </div>
-    <div class="subtitle">انضم لفريقنا — قدّم على وظيفة</div>
-  </div>
-  <div class="progress-bar" id="progressBar"></div>
+    <p class="subtitle" id="headerSubtitle">انضم لفريقنا — قدّم على وظيفة</p>
+  </header>
+  <div class="progress-bar" id="progressBar" role="progressbar" aria-label="Progress"></div>
   <div class="card" id="formCard">
     <div id="stepContent"></div>
   </div>
 </div>
 <script>
 (function () {
-  var img = document.getElementById('siteLogo');
-  var svg = document.getElementById('siteLogoSvg');
-  var text = document.getElementById('logoText');
-  if (!img) return;
-  var paths = ['img/logo.png', 'img/logo_1.PNG', 'logo.png'];
+  var logo = document.getElementById('siteLogo');
+  if (!logo) return;
+  var fallbacks = ['img/logo.png', 'img/logo_1.PNG', 'logo.png'];
   var i = 0;
-  img.addEventListener('error', function () {
-    if (i < paths.length) {
-      img.src = paths[i++];
+  logo.addEventListener('error', function () {
+    if (i < fallbacks.length) {
+      logo.src = fallbacks[i++];
       return;
     }
-    img.hidden = true;
-    if (svg) {
-      svg.hidden = false;
-      svg.addEventListener('error', function () {
-        svg.hidden = true;
-        if (text) text.hidden = false;
-      }, { once: true });
-      return;
-    }
-    if (text) text.hidden = false;
+    logo.replaceWith((function () {
+      var s = document.createElement('span');
+      s.className = 'logo-wordmark';
+      s.setAttribute('aria-label', 'Eduzah');
+      s.innerHTML = '<em>e</em>duzah';
+      return s;
+    })());
   });
 })();
 </script>
