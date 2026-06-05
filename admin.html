@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Eduzah — Admin Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  body { font-family: 'Segoe UI', system-ui, sans-serif; }
+  .fade { animation: fadeIn .25s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  table { border-collapse: collapse; width: 100%; }
+  th { position: sticky; top: 0; z-index: 10; }
+  tr:hover td { background: #f0f9ff; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:9999px; font-size:11px; font-weight:600; }
+  .tag-kids     { background:#dbeafe; color:#1d4ed8; }
+  .tag-cyber    { background:#fef3c7; color:#92400e; }
+  .tag-prog     { background:#dcfce7; color:#166534; }
+  .tag-data     { background:#f3e8ff; color:#7e22ce; }
+  .tag-ai       { background:#e0f2fe; color:#0369a1; }
+  .tag-english  { background:#fce7f3; color:#9d174d; }
+  .tag-sales    { background:#ffedd5; color:#c2410c; }
+  .tag-designer { background:#f0fdf4; color:#15803d; }
+  .tag-other    { background:#f1f5f9; color:#475569; }
+  input:focus, select:focus { outline: 2px solid #7c3aed; outline-offset: 1px; }
+  ::-webkit-scrollbar { width:6px; height:6px; }
+  ::-webkit-scrollbar-thumb { background:#d1d5db; border-radius:3px; }
+  .modal-bg { background: rgba(0,0,0,.45); }
+</style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<!-- ══════════════════ LOGIN ══════════════════ -->
+<div id="loginScreen" class="min-h-screen flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm fade">
+    <div class="flex justify-center mb-6">
+      <img src="img/eduzah-logo.svg" alt="Eduzah" class="h-10" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'text-2xl font-bold text-purple-700',textContent:'eduzah'}))">
+    </div>
+    <h1 class="text-xl font-bold text-gray-800 text-center mb-1">Admin Dashboard</h1>
+    <p class="text-sm text-gray-400 text-center mb-6">Restricted access</p>
+    <label class="block text-xs font-semibold text-gray-600 mb-1">Password</label>
+    <input id="adminPwd" type="password" placeholder="Enter admin password"
+      class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm mb-3 block"
+      onkeydown="if(event.key==='Enter') doLogin()" />
+    <p id="loginErr" class="text-red-500 text-xs mb-3 hidden">Incorrect password. Try again.</p>
+    <button onclick="doLogin()"
+      class="w-full bg-purple-700 hover:bg-purple-800 text-white font-semibold rounded-lg py-2.5 text-sm transition">
+      Sign In
+    </button>
+  </div>
+</div>
+
+<!-- ══════════════════ DASHBOARD ══════════════════ -->
+<div id="dashboard" class="hidden">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-30">
+    <div class="flex items-center gap-3">
+      <img src="img/eduzah-logo.svg" alt="Eduzah" class="h-8" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'font-bold text-purple-700 text-lg',textContent:'eduzah'}))">
+      <span class="text-xs font-semibold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">Admin</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <span id="lastRefresh" class="text-xs text-gray-400 hidden sm:block"></span>
+      <button onclick="loadData()" id="refreshBtn"
+        class="text-sm text-gray-500 hover:text-purple-700 border border-gray-200 rounded-lg px-3 py-1.5 flex items-center gap-1 transition">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        Refresh
+      </button>
+      <button onclick="logout()"
+        class="text-sm text-gray-500 hover:text-red-600 border border-gray-200 rounded-lg px-3 py-1.5 transition">
+        Sign out
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-screen-2xl mx-auto px-4 py-6">
+
+    <!-- Stats -->
+    <div id="statsRow" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6"></div>
+
+    <!-- Toolbar -->
+    <div class="bg-white rounded-xl border border-gray-200 p-4 mb-4 flex flex-wrap gap-3 items-end">
+      <div class="flex-1 min-w-48">
+        <label class="block text-xs font-semibold text-gray-500 mb-1">Search</label>
+        <input id="searchInput" type="search" placeholder="Name, phone, email…"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+          oninput="applyFilters()" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">Position</label>
+        <select id="posFilter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white" onchange="applyFilters()">
+          <option value="">All positions</option>
+          <option value="kids-coding">Coding Instructor</option>
+          <option value="prog-fundamentals">Programming Fundamentals</option>
+          <option value="english-instructor">English Instructor</option>
+          <option value="cybersecurity">Cybersecurity</option>
+          <option value="data-analysis">Data Analysis</option>
+          <option value="ai-instructor">AI Instructor</option>
+          <option value="sales">Sales Rep</option>
+          <option value="designer">Graphic Designer</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">Work mode</label>
+        <select id="modeFilter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white" onchange="applyFilters()">
+          <option value="">All modes</option>
+          <option value="online">Online</option>
+          <option value="offline">Offline</option>
+          <option value="hybrid">Hybrid</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">From</label>
+        <input id="dateFrom" type="date" class="border border-gray-200 rounded-lg px-3 py-2 text-sm" onchange="applyFilters()" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">To</label>
+        <input id="dateTo" type="date" class="border border-gray-200 rounded-lg px-3 py-2 text-sm" onchange="applyFilters()" />
+      </div>
+      <button onclick="clearFilters()"
+        class="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-500 hover:text-gray-800 transition">
+        Clear
+      </button>
+      <button onclick="exportExcel()"
+        class="ml-auto bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg px-4 py-2 text-sm flex items-center gap-2 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        Export Excel
+      </button>
+    </div>
+
+    <!-- Table -->
+    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div id="tableStatus" class="px-4 py-2 text-xs text-gray-400 border-b border-gray-100 flex justify-between">
+        <span id="rowCount">—</span>
+        <span id="pageInfo">—</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table>
+          <thead class="bg-gray-50 text-left">
+            <tr>
+              <th class="px-4 py-3 text-xs font-semibold text-gray-500">#</th>
+              <th class="px-4 py-3 text-xs font-semibold text-gray-500 cursor-pointer" onclick="sortBy('nameEn')">Name ↕</th>
+              <th class="px-4 py-3 text-xs font-semibold text-gray-500">Phone</th>
+              <th class="px-4 py-3 text-xs font-semibold text-gray-500">Email</th>
+              <th class="px-4 py-3 text-xs font-semibold text-gray-500 cursor-pointer" onclick="sortBy('position')">Position ↕</th>
+              <th class="px-4 py-3 text-xs font-semibold text-gray-500">Work mode</th>
+              <th class="px-4 py-3 text-xs font-semibold text-gray-500">Available days</th>
+              <th class="px-4 py-3 text-xs font-semibold text-gray-500">City</th>
+              <th class="px-4 py-3 text-xs font-semibold text-gray-500 cursor-pointer" onclick="sortBy('submittedAt')">Date ↕</th>
+              <th class="px-4 py-3 text-xs font-semibold text-gray-500">Video</th>
+              <th class="px-4 py-3 text-xs font-semibold text-gray-500"></th>
+            </tr>
+          </thead>
+          <tbody id="tableBody" class="divide-y divide-gray-100 text-sm text-gray-700"></tbody>
+        </table>
+      </div>
+      <!-- Empty / loading state -->
+      <div id="emptyState" class="hidden py-16 text-center text-gray-400">
+        <svg class="w-10 h-10 mx-auto mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <p class="font-medium">No applicants found</p>
+        <p class="text-xs mt-1">Try adjusting filters</p>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div id="pagination" class="flex items-center justify-center gap-2 mt-4 flex-wrap"></div>
+
+  </main>
+</div>
+
+<!-- ══════════════════ DETAIL MODAL ══════════════════ -->
+<div id="detailModal" class="hidden fixed inset-0 z-50 modal-bg flex items-center justify-center p-4" onclick="if(event.target===this) closeModal()">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto fade">
+    <div class="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex justify-between items-center rounded-t-2xl">
+      <h2 id="modalTitle" class="font-bold text-gray-800">Applicant Details</h2>
+      <button onclick="closeModal()" class="text-gray-400 hover:text-gray-700 text-xl leading-none">&times;</button>
+    </div>
+    <div id="modalBody" class="px-6 py-5"></div>
+  </div>
+</div>
+
+<!-- ══════════════════ LOADING OVERLAY ══════════════════ -->
+<div id="loadingOverlay" class="hidden fixed inset-0 z-50 bg-white/70 flex items-center justify-center">
+  <div class="bg-white rounded-xl shadow-lg px-8 py-6 flex flex-col items-center gap-3">
+    <svg class="animate-spin w-8 h-8 text-purple-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+    <p class="text-sm text-gray-600 font-medium">Loading applicants…</p>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────────────────────
+// Change this password to something secure!
+const ADMIN_PASSWORD = 'Eduzah@2025';
+
+// Your Apps Script URL (same one used in form.js)
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxKns_bMFcdq1Krlxb2korVsC2qATWhEf1Gye-lLHoFXw6jyjQvONWNXLnczNZNlB0Wxg/exec';
+
+// Token sent to Apps Script for data access
+const ADMIN_TOKEN  = 'eduzah-admin-token-2025';
+
+const PAGE_SIZE = 25;
+// ─────────────────────────────────────────────────────────────────────────────
+
+let allData      = [];
+let filteredData = [];
+let currentPage  = 1;
+let sortKey      = 'submittedAt';
+let sortAsc      = false;
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
+function doLogin() {
+  const pwd = document.getElementById('adminPwd').value;
+  if (pwd === ADMIN_PASSWORD) {
+    sessionStorage.setItem('eduzah_admin', '1');
+    showDashboard();
+  } else {
+    document.getElementById('loginErr').classList.remove('hidden');
+    document.getElementById('adminPwd').classList.add('border-red-400');
+  }
+}
+
+function logout() {
+  sessionStorage.removeItem('eduzah_admin');
+  location.reload();
+}
+
+function checkAuth() {
+  if (sessionStorage.getItem('eduzah_admin') === '1') showDashboard();
+}
+
+function showDashboard() {
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('dashboard').classList.remove('hidden');
+  loadData();
+}
+
+// ── Data ─────────────────────────────────────────────────────────────────────
+async function loadData() {
+  setLoading(true);
+  try {
+    const url = SCRIPT_URL + '?action=getData&token=' + encodeURIComponent(ADMIN_TOKEN);
+    const res  = await fetch(url);
+    const json = await res.json();
+
+    if (json.status !== 'ok') throw new Error(json.message || 'Script error');
+
+    allData = json.data || [];
+    document.getElementById('lastRefresh').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    document.getElementById('lastRefresh').classList.remove('hidden');
+    applyFilters();
+    renderStats();
+  } catch (err) {
+    showError('Failed to load data: ' + err.message +
+      '<br><small>Make sure the Apps Script doGet is deployed and the ADMIN_TOKEN matches.</small>');
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ── Filters ───────────────────────────────────────────────────────────────────
+function applyFilters() {
+  const q    = document.getElementById('searchInput').value.toLowerCase().trim();
+  const pos  = document.getElementById('posFilter').value;
+  const mode = document.getElementById('modeFilter').value;
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+
+  filteredData = allData.filter(r => {
+    const name  = ((r.nameAr || '') + ' ' + (r.nameEn || '')).toLowerCase();
+    const phone = (r.phone || '').toLowerCase();
+    const email = (r.email || '').toLowerCase();
+    if (q && !name.includes(q) && !phone.includes(q) && !email.includes(q)) return false;
+    if (pos  && r.position !== pos)   return false;
+    if (mode && r.workMode !== mode)  return false;
+    if (from || to) {
+      const d = new Date(r.submittedAt || r.Date || '');
+      if (from && d < new Date(from)) return false;
+      if (to   && d > new Date(to + 'T23:59:59')) return false;
+    }
+    return true;
+  });
+
+  // Sort
+  filteredData.sort((a, b) => {
+    const va = a[sortKey] || '';
+    const vb = b[sortKey] || '';
+    return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+  });
+
+  currentPage = 1;
+  renderTable();
+}
+
+function clearFilters() {
+  ['searchInput','posFilter','modeFilter','dateFrom','dateTo'].forEach(id => {
+    const el = document.getElementById(id);
+    el.value = '';
+  });
+  applyFilters();
+}
+
+function sortBy(key) {
+  if (sortKey === key) sortAsc = !sortAsc;
+  else { sortKey = key; sortAsc = false; }
+  applyFilters();
+}
+
+// ── Render table ──────────────────────────────────────────────────────────────
+const POS_LABELS = {
+  'kids-coding':       'Coding Instructor',
+  'prog-fundamentals': 'Programming Fund.',
+  'english-instructor':'English Instructor',
+  'cybersecurity':     'Cybersecurity',
+  'data-analysis':     'Data Analysis',
+  'ai-instructor':     'AI Instructor',
+  'sales':             'Sales Rep',
+  'designer':          'Graphic Designer',
+};
+const POS_TAG = {
+  'kids-coding':'tag-kids','prog-fundamentals':'tag-prog','english-instructor':'tag-english',
+  'cybersecurity':'tag-cyber','data-analysis':'tag-data','ai-instructor':'tag-ai',
+  'sales':'tag-sales','designer':'tag-designer',
+};
+
+function renderTable() {
+  const total = filteredData.length;
+  const pages = Math.ceil(total / PAGE_SIZE) || 1;
+  if (currentPage > pages) currentPage = pages;
+
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const slice = filteredData.slice(start, start + PAGE_SIZE);
+
+  document.getElementById('rowCount').textContent =
+    total + ' applicant' + (total !== 1 ? 's' : '') +
+    (total !== allData.length ? ' (filtered from ' + allData.length + ')' : '');
+  document.getElementById('pageInfo').textContent =
+    'Page ' + currentPage + ' / ' + pages;
+
+  const tbody = document.getElementById('tableBody');
+  const empty = document.getElementById('emptyState');
+
+  if (!slice.length) {
+    tbody.innerHTML = '';
+    empty.classList.remove('hidden');
+    renderPagination(pages);
+    return;
+  }
+  empty.classList.add('hidden');
+
+  tbody.innerHTML = slice.map((r, i) => {
+    const idx       = start + i + 1;
+    const date      = fmtDate(r.submittedAt || r.Date || '');
+    const posLabel  = POS_LABELS[r.position] || r.position || '—';
+    const posTag    = POS_TAG[r.position] || 'tag-other';
+    const videoHtml = r.videoLink
+      ? `<a href="${esc(r.videoLink)}" target="_blank" class="text-purple-600 hover:underline text-xs">▶ View</a>`
+      : `<span class="text-gray-300">—</span>`;
+
+    return `<tr class="cursor-pointer" onclick="showDetail(${start + i})">
+      <td class="px-4 py-3 text-gray-400 text-xs">${idx}</td>
+      <td class="px-4 py-3">
+        <div class="font-medium text-gray-800">${esc(r.nameEn || r.nameAr || '—')}</div>
+        <div class="text-xs text-gray-400" dir="rtl">${esc(r.nameAr || '')}</div>
+      </td>
+      <td class="px-4 py-3 whitespace-nowrap">${esc(r.phone || '—')}</td>
+      <td class="px-4 py-3 text-xs text-gray-500 max-w-36 truncate">${esc(r.email || '—')}</td>
+      <td class="px-4 py-3"><span class="badge ${posTag}">${posLabel}</span></td>
+      <td class="px-4 py-3 text-xs capitalize">${r.workMode || '—'}</td>
+      <td class="px-4 py-3 text-xs text-gray-500 max-w-32 truncate">${esc(r.availDays || '—')}</td>
+      <td class="px-4 py-3 text-xs">${esc(r.city || r.gov || '—')}</td>
+      <td class="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">${date}</td>
+      <td class="px-4 py-3">${videoHtml}</td>
+      <td class="px-4 py-3">
+        <button class="text-xs text-purple-600 hover:text-purple-800 font-medium" onclick="event.stopPropagation();showDetail(${start + i})">
+          Details →
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  renderPagination(pages);
+}
+
+function renderPagination(pages) {
+  const el = document.getElementById('pagination');
+  if (pages <= 1) { el.innerHTML = ''; return; }
+
+  let html = '';
+  const btn = (label, page, disabled, active) =>
+    `<button onclick="goPage(${page})" ${disabled ? 'disabled' : ''}
+      class="px-3 py-1.5 text-sm rounded-lg border ${active ? 'bg-purple-700 text-white border-purple-700' : 'bg-white text-gray-600 border-gray-200 hover:border-purple-300'} ${disabled ? 'opacity-40 cursor-not-allowed' : ''}">
+      ${label}
+    </button>`;
+
+  html += btn('‹ Prev', currentPage - 1, currentPage === 1, false);
+
+  const range = pageRange(currentPage, pages);
+  range.forEach(p => {
+    if (p === '…') html += `<span class="px-2 text-gray-400">…</span>`;
+    else html += btn(p, p, false, p === currentPage);
+  });
+
+  html += btn('Next ›', currentPage + 1, currentPage === pages, false);
+  el.innerHTML = html;
+}
+
+function pageRange(cur, total) {
+  if (total <= 7) return Array.from({length:total},(_,i)=>i+1);
+  const r = [1];
+  if (cur > 3) r.push('…');
+  for (let i = Math.max(2, cur-1); i <= Math.min(total-1, cur+1); i++) r.push(i);
+  if (cur < total - 2) r.push('…');
+  r.push(total);
+  return r;
+}
+
+function goPage(p) { currentPage = p; renderTable(); window.scrollTo({top:0,behavior:'smooth'}); }
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+function renderStats() {
+  const total = allData.length;
+  const today = allData.filter(r => {
+    const d = new Date(r.submittedAt || '');
+    const n = new Date();
+    return d.toDateString() === n.toDateString();
+  }).length;
+
+  const byPos = {};
+  allData.forEach(r => { byPos[r.position] = (byPos[r.position]||0)+1; });
+  const topPos = Object.entries(byPos).sort((a,b)=>b[1]-a[1])[0];
+
+  const teaching = ['kids-coding','prog-fundamentals','english-instructor','cybersecurity','data-analysis','ai-instructor'];
+  const teachCount = allData.filter(r => teaching.includes(r.position)).length;
+
+  const cards = [
+    { label: 'Total Applicants', value: total, color: 'purple' },
+    { label: 'Today',            value: today, color: 'blue'   },
+    { label: 'Teaching roles',   value: teachCount, color: 'green' },
+    { label: 'Top position',     value: topPos ? (POS_LABELS[topPos[0]] || topPos[0]) + ' (' + topPos[1] + ')' : '—', color: 'orange' },
+  ];
+
+  const colors = {
+    purple: 'bg-purple-50 border-purple-100 text-purple-700',
+    blue:   'bg-blue-50 border-blue-100 text-blue-700',
+    green:  'bg-green-50 border-green-100 text-green-700',
+    orange: 'bg-orange-50 border-orange-100 text-orange-700',
+  };
+
+  document.getElementById('statsRow').innerHTML = cards.map(c => `
+    <div class="bg-white rounded-xl border ${colors[c.color].split(' ')[1]} p-4 fade">
+      <p class="text-xs font-semibold text-gray-500 mb-1">${c.label}</p>
+      <p class="text-2xl font-bold ${colors[c.color].split(' ')[2]}">${c.value}</p>
+    </div>
+  `).join('');
+}
+
+// ── Detail modal ──────────────────────────────────────────────────────────────
+function showDetail(idx) {
+  const r = filteredData[idx];
+  if (!r) return;
+  document.getElementById('modalTitle').textContent =
+    (r.nameEn || r.nameAr || 'Applicant') + ' — ' + (POS_LABELS[r.position] || r.position || '');
+
+  const section = (title, rows) => {
+    const items = rows.filter(([,v]) => v && String(v).trim());
+    if (!items.length) return '';
+    return `<div class="mb-5">
+      <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">${title}</h3>
+      <div class="grid grid-cols-2 gap-x-6 gap-y-2">
+        ${items.map(([l,v]) => `
+          <div>
+            <p class="text-xs text-gray-400">${l}</p>
+            <p class="text-sm text-gray-800 font-medium break-words">${
+              String(v).startsWith('http') ? `<a href="${esc(v)}" target="_blank" class="text-purple-600 hover:underline">${esc(v)}</a>` : esc(String(v))
+            }</p>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  };
+
+  document.getElementById('modalBody').innerHTML =
+    section('Personal', [
+      ['Full name (AR)', r.nameAr], ['Full name (EN)', r.nameEn],
+      ['Phone', r.phone], ['Email', r.email],
+      ['National ID', r.natid], ['Date of birth', r.dob],
+      ['Gender', r.gender], ['Governorate', r.gov],
+      ['City', r.city],
+    ]) +
+    section('Academic', [
+      ['University', r.uni], ['Faculty', r.faculty],
+      ['Major', r.major], ['Grad year', r.gradYear],
+      ['Status', r.status],
+    ]) +
+    section('Role & Availability', [
+      ['Position', POS_LABELS[r.position] || r.position],
+      ['Work mode', r.workMode], ['Work type', r.workType],
+      ['Available days', r.availDays], ['Shift', r.shift],
+      ['Start date', r.startDate],
+    ]) +
+    section('Assessment', [
+      ['English level', r.engLevel],
+      ['Teaching rate', r.rateTeach ? r.rateTeach + '/10' : ''],
+      ['Tech rate', r.rateTech ? r.rateTech + '/10' : ''],
+      ['Comm rate', r.rateComm ? r.rateComm + '/10' : ''],
+      ['Laptop', r.laptop], ['Internet', r.internet], ['Cam+Mic', r.camMic],
+    ]) +
+    section('Screening', [
+      ['Why Eduzah', r.whyEduzah], ['Why fit', r.whyFit],
+      ['Handle Q', r.handleQ], ['Recorded OK', r.recorded],
+      ['Source', r.source], ['Referral', r.referral],
+    ]) +
+    section('Links & Files', [
+      ['Video link', r.videoLink], ['CV file', r.cvFile],
+      ['Photo file', r.photoFile],
+    ]) +
+    section('Submission', [
+      ['Submitted at', fmtDate(r.submittedAt || r.Date || '')],
+    ]);
+
+  document.getElementById('detailModal').classList.remove('hidden');
+}
+
+function closeModal() { document.getElementById('detailModal').classList.add('hidden'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// ── Export ────────────────────────────────────────────────────────────────────
+function exportExcel() {
+  if (!filteredData.length) { alert('No data to export.'); return; }
+
+  const headers = [
+    'Date','Full Name (EN)','Full Name (AR)','Phone','Email','Position',
+    'Work Mode','Work Type','Available Days','Shift','Start Date',
+    'Governorate','City','University','Faculty','Major','Grad Year','Status',
+    'National ID','DOB','Gender',
+    'English Level','Teach Rate','Tech Rate','Comm Rate',
+    'Laptop','Internet','Cam+Mic',
+    'Video Link','CV File',
+    'Why Eduzah','Why Fit','Handle Q','Recorded','Source','Referral',
+  ];
+
+  const rows = filteredData.map(r => [
+    fmtDate(r.submittedAt || r.Date || ''),
+    r.nameEn || '', r.nameAr || '',
+    r.phone || '', r.email || '',
+    POS_LABELS[r.position] || r.position || '',
+    r.workMode || '', r.workType || '', r.availDays || '', r.shift || '', r.startDate || '',
+    r.gov || '', r.city || '',
+    r.uni || '', r.faculty || '', r.major || '', r.gradYear || '', r.status || '',
+    r.natid || '', r.dob || '', r.gender || '',
+    r.engLevel || '',
+    r.rateTeach ? r.rateTeach + '/10' : '',
+    r.rateTech  ? r.rateTech  + '/10' : '',
+    r.rateComm  ? r.rateComm  + '/10' : '',
+    r.laptop || '', r.internet || '', r.camMic || '',
+    r.videoLink || '', r.cvFile || '',
+    r.whyEduzah || '', r.whyFit || '', r.handleQ || '', r.recorded || '',
+    r.source || '', r.referral || '',
+  ]);
+
+  const ws   = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  const wb   = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Applicants');
+
+  // Column widths
+  ws['!cols'] = headers.map((h,i) => ({
+    wch: i < 2 ? 14 : i < 6 ? 22 : 16
+  }));
+
+  const date = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `Eduzah-Applicants-${date}.xlsx`);
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fmtDate(iso) {
+  if (!iso) return '—';
+  try {
+    return new Date(iso).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  } catch { return iso; }
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function setLoading(on) {
+  document.getElementById('loadingOverlay').classList.toggle('hidden', !on);
+}
+
+function showError(msg) {
+  document.getElementById('tableBody').innerHTML =
+    `<tr><td colspan="11" class="px-6 py-10 text-center text-red-500 text-sm">${msg}</td></tr>`;
+  document.getElementById('emptyState').classList.add('hidden');
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+checkAuth();
+</script>
+</body>
+</html>

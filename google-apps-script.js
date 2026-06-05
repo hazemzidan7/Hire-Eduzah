@@ -27,6 +27,9 @@
 var SPREADSHEET_ID = '17AiLZYmOHNGiWzqtZ55anWbvmAibIpb8xUy9wVvaHII';
 var SHEET_NAME     = 'Sheet1'; // change if your sheet tab has a different name
 
+// Admin token — must match ADMIN_TOKEN in admin.html
+var ADMIN_TOKEN = 'eduzah-admin-token-2025';
+
 function doPost(e) {
   try {
     var raw = e.postData ? e.postData.contents : '';
@@ -91,6 +94,62 @@ function doPost(e) {
     sheet.appendRow(row);
 
     return jsonResponse({ status: 'ok' });
+
+  } catch (err) {
+    return jsonResponse({ status: 'error', message: err.toString() });
+  }
+}
+
+/**
+ * doGet — Admin dashboard data endpoint
+ * Called by admin.html with ?action=getData&token=...
+ */
+function doGet(e) {
+  try {
+    var params = e ? (e.parameter || {}) : {};
+
+    // Token check
+    if (params.token !== ADMIN_TOKEN) {
+      return jsonResponse({ status: 'error', message: 'Unauthorized' });
+    }
+
+    if (params.action !== 'getData') {
+      return jsonResponse({ status: 'error', message: 'Unknown action' });
+    }
+
+    var ss    = SPREADSHEET_ID
+                  ? SpreadsheetApp.openById(SPREADSHEET_ID)
+                  : SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName(SHEET_NAME) || ss.getSheets()[0];
+    var values = sheet.getDataRange().getValues();
+
+    if (values.length < 2) {
+      return jsonResponse({ status: 'ok', data: [] });
+    }
+
+    // Map column positions to field names (matches the row array in doPost)
+    var FIELDS = [
+      'submittedAt','nameAr','nameEn','phone','email','position',
+      'natid','dob','gender','gov','city',
+      'uni','faculty','major','gradYear','status',
+      'workMode','workType','availDays','shift','startDate',
+      'engLevel','rateTeach','rateTech','rateComm',
+      'laptop','internet','camMic',
+      'videoLink','cvFile','photoFile','natidFront','natidBack',
+      'whyEduzah','whyFit','handleQ','recorded',
+      'source','referral',
+      'roleQ1','roleQ2','roleQ3','roleQ4',
+    ];
+
+    var data = values.slice(1).map(function(row) {
+      var obj = {};
+      FIELDS.forEach(function(f, i) {
+        obj[f] = row[i] !== undefined ? String(row[i]) : '';
+      });
+      return obj;
+    }).filter(function(r) { return r.submittedAt || r.nameAr || r.nameEn; });
+
+    return jsonResponse({ status: 'ok', data: data });
 
   } catch (err) {
     return jsonResponse({ status: 'error', message: err.toString() });
