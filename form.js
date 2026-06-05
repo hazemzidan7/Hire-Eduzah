@@ -731,7 +731,7 @@ function goBack() {
   if (S.step > 0) { S.step--; renderStep(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 }
 
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyVNd2qR8RjdfaERBrOVE6z4_UJPKw8_0DsjWdtlcYCLXvrW0cloPM5Yr-yd49cAuHbxg/exec';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwjuOQlKC9wQWt5_3i0xzlAKiAriqVv4YfcjEz3-BZh-lgeR9ukX-XsN8mn3CLdirGaWw/exec';
 
 function collectFormData(fileUrls) {
   // submitForm already snapshotted — no need to repeat
