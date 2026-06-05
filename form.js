@@ -734,9 +734,9 @@ function goBack() {
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxsWxPDvk-HdA0dghpuN8IzIsH_0uM5naVDqca1PYciyUjnXfhqgKW0YYuV1O5K6K0jdA/exec';
 
 function collectFormData() {
-  if (window.FormCollector) FormCollector.snapshotCurrentStep();
-
+  // submitForm already snapshotted — no need to repeat
   const d = window.FormStore ? FormStore.getAll() : {};
+  const files = window.FormStore ? FormStore.getAllFiles() : {};
   const g = (k, def) => (k in d) ? d[k] : (def !== undefined ? def : '');
   const arr = k => Array.isArray(d[k]) ? d[k].join(', ') : '';
 
@@ -771,7 +771,10 @@ function collectFormData() {
     salesExp: g('salesExp'), salesComm: g('salesComm', '5'), salesScen: g('salesScen'), salesSalary: g('salesSalary'),
     designTools: arr('cbgroup_designToolsGroup'), designPort: g('designPort'), designYrs: g('designYrs'),
     designFields: arr('cbgroup_designFieldsGroup'), designProc: g('designProc'),
-    filesUploaded: window.FormStore ? Object.keys(FormStore.getAllFiles()).join(', ') : '',
+    cvFile: files.cvFile ? files.cvFile.name : '',
+    photoFile: files.photoFile ? files.photoFile.name : '',
+    natidFront: files.natidFront ? files.natidFront.name : '',
+    natidBack: files.natidBack ? files.natidBack.name : '',
     submittedAt: new Date().toISOString(),
   };
 }
@@ -789,6 +792,15 @@ function showSuccessScreen() {
     </div>`;
 }
 
+function _setOverlay(visible, msg) {
+  const ov = document.getElementById('submitOverlay');
+  const tx = document.getElementById('submitOverlayMsg');
+  if (!ov) return;
+  if (tx && msg) tx.textContent = msg;
+  ov.classList.toggle('is-active', visible);
+  ov.setAttribute('aria-hidden', String(!visible));
+}
+
 async function submitForm() {
   if (window.SubmissionService && SubmissionService.isSubmitting()) return;
   if (window.FormCollector) FormCollector.snapshotCurrentStep();
@@ -796,25 +808,26 @@ async function submitForm() {
 
   const agree = $('agree');
   if (!agree || !agree.checked) {
+    setFieldError('agree', tr('يرجى تأكيد الإقرار قبل إرسال الطلب', 'Please confirm the agreement before submitting'));
     showStepError(tr('يرجى تأكيد الإقرار قبل إرسال الطلب', 'Please confirm the agreement before submitting'));
     window.scrollTo({ top: 0, behavior: 'smooth' });
     return;
   }
 
-  const btn = document.querySelector('.btn-next');
-  if (btn) { btn.disabled = true; btn.textContent = tr('جاري الإرسال...', 'Submitting...'); }
+  _setOverlay(true, tr('جاري الإرسال...', 'Submitting your application…'));
 
   try {
     const data = collectFormData();
     await fetch(GOOGLE_SCRIPT_URL, {
       method: 'POST',
       mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify(data),
     });
+    _setOverlay(false);
     showSuccessScreen();
   } catch (e) {
-    if (btn) { btn.disabled = false; btn.textContent = tr('إرسال الطلب', 'Submit Application'); }
+    _setOverlay(false);
     showStepError(tr('حدث خطأ أثناء الإرسال، يرجى المحاولة مرة أخرى', 'An error occurred, please try again'));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }

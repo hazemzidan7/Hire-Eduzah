@@ -22,6 +22,13 @@
     <div id="stepContent"></div>
   </div>
 </div>
+
+<div class="submit-overlay" id="submitOverlay" aria-hidden="true" role="status">
+  <div class="submit-overlay-card">
+    <div class="submit-spinner" aria-hidden="true"></div>
+    <p class="submit-overlay-msg" id="submitOverlayMsg">جاري الإرسال...</p>
+  </div>
+</div>
 <script>
 (function () {
   var logo = document.getElementById('siteLogo');
@@ -43,7 +50,19 @@
   });
 })();
 </script>
+<script src="js/config.example.js"></script>
+<script src="js/config.js"></script>
 <script src="national-id-parser.js"></script>
+<script src="js/form-schema.js"></script>
+<script src="js/form-store.js"></script>
+<script src="js/form-collector.js"></script>
+<script src="js/validation.js"></script>
+<script src="js/error-handler.js"></script>
+<script src="js/ui-state.js"></script>
+<script src="js/queue-service.js"></script>
+<script src="js/cloudinary.js"></script>
+<script src="js/sheets-api.js"></script>
+<script src="js/submission-service.js"></script>
 <script src="form.js"></script>
 </body>
 </html>

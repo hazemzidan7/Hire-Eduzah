@@ -115,10 +115,30 @@ window.FormCollector = (function () {
       if (sohagRow) sohagRow.style.display = gov.value === 'Sohag' ? 'block' : 'none';
     }
 
-    // Re-apply national ID validation state
+    // Re-apply national ID validation UI (show/hide hint) WITHOUT overwriting
+    // fields the user may have edited manually — only update visual state.
     var natid = document.getElementById('natid');
     if (natid && natid.value && typeof applyNatIdParse === 'function') {
+      // Save current dob/gender/gov so natid parse doesn't overwrite them
+      var dobEl = document.getElementById('dob');
+      var savedDob = dobEl ? dobEl.value : null;
+      var checkedGender = document.querySelector('input[name="gender"]:checked');
+      var savedGender = checkedGender ? checkedGender.value : null;
+      var govEl = document.getElementById('gov');
+      var savedGov = govEl ? govEl.value : null;
+
       applyNatIdParse(natid.value);
+
+      // Restore manually-overridden values after natid autofill
+      if (dobEl && savedDob !== null) { dobEl.value = savedDob; dobEl.readOnly = false; dobEl.classList.remove('dob-autofill'); }
+      if (savedGender !== null) {
+        document.querySelectorAll('input[name="gender"]').forEach(function (r) { r.checked = r.value === savedGender; });
+      }
+      if (govEl && savedGov !== null) {
+        govEl.value = savedGov;
+        var sohagRow = document.getElementById('sohagRow');
+        if (sohagRow) sohagRow.style.display = savedGov === 'Sohag' ? 'block' : 'none';
+      }
     }
 
     // File upload feedback
@@ -128,10 +148,13 @@ window.FormCollector = (function () {
       var box = inp.closest('.upload-box');
       if (!box) return;
       box.classList.add('file-selected');
+      box.classList.remove('invalid');
       var p = box.querySelector('p');
       if (p) p.textContent = '✓ ' + file.name;
       var small = box.querySelector('small');
-      if (small) small.textContent = (file.size / 1024).toFixed(0) + ' KB';
+      if (small) small.textContent = (file.size / 1024).toFixed(0) + ' KB — ' + (typeof isEn === 'function' && isEn() ? 'Selected' : 'تم الاختيار');
+      var errEl = document.getElementById(inp.id + '_err');
+      if (errEl) errEl.classList.remove('show');
     });
   }
 
