@@ -34,6 +34,14 @@ const ALLOW_MANUAL_DOB_EDIT = false;
 let S = { step: 0, role: null, stepList: [] };
 let natIdAutofillBound = false;
 
+/** Exposed for submission modules */
+if (typeof window !== 'undefined') {
+  window.ROLES = ROLES;
+  window.isEn = isEn;
+  window.natIdMsg = natIdMsg;
+  window.S = S;
+}
+
 function isEn() { return S.role === 'english-instructor'; }
 function tr(ar, en) { return isEn() ? en : ar; }
 function trackLabel(r) { return isEn() ? r.track.en : r.track.ar; }
@@ -454,12 +462,34 @@ function renderProgress() {
   });
 }
 
+function bindFileInputListeners() {
+  document.querySelectorAll('#stepContent input[type=file][id]').forEach(inp => {
+    inp.addEventListener('change', function () {
+      const file = this.files && this.files[0];
+      if (!file) return;
+      if (window.FormStore) FormStore.setFile(this.id, file);
+      const box = this.closest('.upload-box');
+      if (!box) return;
+      box.classList.remove('invalid');
+      box.classList.add('file-selected');
+      const p = box.querySelector('p');
+      if (p) p.textContent = '✓ ' + file.name;
+      const small = box.querySelector('small');
+      if (small) small.textContent = (file.size / 1024).toFixed(0) + ' KB';
+      const errEl = document.getElementById(this.id + '_err');
+      if (errEl) errEl.classList.remove('show');
+    });
+  });
+}
+
 function renderStep() {
   applyDocumentLocale();
   renderProgress();
   const c = document.getElementById('stepContent');
   c.innerHTML = '';
   [r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11][cur()]();
+  if (window.FormCollector) FormCollector.restoreCurrentStep();
+  bindFileInputListeners();
 }
 
 function r0() {
@@ -479,6 +509,7 @@ function r0() {
 function pickRole(id) {
   const wasEn = isEn();
   S.role = id;
+  if (window.FormStore) FormStore.set('position', id);
   S.stepList = buildSteps(id);
   applyDocumentLocale();
   if (wasEn !== isEn()) {
@@ -550,7 +581,7 @@ function r4() {
     h += `<div class="field-group" id="engModeGroup"><label class="field-label">${tr('نوع التدريس المفضل', 'Preferred teaching mode')} <span class="req">*</span></label><div class="check-group">${[
       ['Online', 'online'], ['Offline', 'offline'], ['Both', 'both'],
     ].map(([m, v]) => `<label class="check-item"><input type="radio" name="engMode" value="${v}"> ${m}</label>`).join('')}</div><div class="field-error" id="engModeGroup_err"></div></div>`;
-    h += `<div class="field-group"><label class="field-label">${tr('مجالات التدريس', 'Teaching areas')}</label><div class="check-group">${['General English', 'Business English', 'Conversation', 'Grammar', 'IELTS / TOEFL prep'].map(t => `<label class="check-item"><input type="checkbox" value="${t}"> ${t}</label>`).join('')}</div></div>`;
+    h += `<div class="field-group"><label class="field-label">${tr('مجالات التدريس', 'Teaching areas')}</label><div class="check-group" data-collect="engAreas">${['General English', 'Business English', 'Conversation', 'Grammar', 'IELTS / TOEFL prep'].map(t => `<label class="check-item"><input type="checkbox" value="${t}"> ${t}</label>`).join('')}</div></div>`;
     h += ta(tr('صف خبرتك في تدريس الإنجليزية', 'Describe your English teaching experience'), 'engTeachExp', 'Years, settings, age groups, certifications (TEFL, CELTA, etc.)...');
     h += ta(tr('كيف تشرح قاعدة نحوية بسيطة لمتعلم بالغ؟', 'How would you explain a simple grammar rule to an adult learner?'), 'engLessonDemo', 'Brief example lesson outline');
     h += fld(tr('رابط Portfolio / LinkedIn (اختياري)', 'Portfolio / LinkedIn link (optional)'), 'engPort', 'url', false, 'https://...');
@@ -559,20 +590,20 @@ function r4() {
     h += `<div class="field-group" id="cyberModeGroup"><label class="field-label">${tr('نوع التدريس المفضل', 'Preferred teaching mode')} <span class="req">*</span></label><div class="check-group">${[
       [tr('أونلاين', 'Online'), 'online'], [tr('أوفلاين', 'Offline'), 'offline'], [tr('كلاهما', 'Both'), 'both'],
     ].map(([m, v]) => `<label class="check-item"><input type="radio" name="cyberMode" value="${v}"> ${m}</label>`).join('')}</div><div class="field-error" id="cyberModeGroup_err"></div></div>`;
-    h += `<div class="field-group"><label class="field-label">${tr('المواضيع التي يمكنك تدريسها', 'Topics you can teach')}</label><div class="check-group">${['Networking', 'Linux', 'Ethical Hacking', 'SOC'].map(t => `<label class="check-item"><input type="checkbox" value="${t}"> ${t}</label>`).join('')}</div></div>`;
+    h += `<div class="field-group"><label class="field-label">${tr('المواضيع التي يمكنك تدريسها', 'Topics you can teach')}</label><div class="check-group" data-collect="cyberTopics">${['Networking', 'Linux', 'Ethical Hacking', 'SOC'].map(t => `<label class="check-item"><input type="checkbox" value="${t}"> ${t}</label>`).join('')}</div></div>`;
     h += ta(tr('ما هو التصيد الاحتيالي (Phishing)؟ اشرح بإيجاز', 'What is phishing? Explain briefly.'), 'phishQ', '');
     h += fld(tr('رابط GitHub / Portfolio', 'GitHub / Portfolio link'), 'cyberGit', 'url', false, 'https://github.com/...');
   }
   if (r === 'data-analysis') {
     h += `<div class="note-box">${tr('هذه الوظيفة متاحة للتدريس الحضوري (أوفلاين) فقط', 'This role is available for offline teaching only')}</div>`;
-    h += `<div class="field-group"><label class="field-label">${tr('الأدوات التي تتقنها', 'Tools you master')}</label><div class="check-group">${['Excel', 'SQL', 'Power BI', 'Python'].map(t => `<label class="check-item"><input type="checkbox" value="${t}"> ${t}</label>`).join('')}</div></div>`;
+    h += `<div class="field-group"><label class="field-label">${tr('الأدوات التي تتقنها', 'Tools you master')}</label><div class="check-group" data-collect="dataTools">${['Excel', 'SQL', 'Power BI', 'Python'].map(t => `<label class="check-item"><input type="checkbox" value="${t}"> ${t}</label>`).join('')}</div></div>`;
     h += ta(tr('ما الفرق بين البيانات المنظمة وغير المنظمة؟', 'What is the difference between structured and unstructured data?'), 'dataQ', '');
     h += fld(tr('رابط Portfolio / مشاريع', 'Portfolio / projects link'), 'dataPort', 'url', false, 'https://...');
   }
   if (r === 'ai-instructor') {
     h += `<div class="note-box">${tr('هذه الوظيفة متاحة للتدريس الحضوري (أوفلاين) فقط', 'This role is available for offline teaching only')}</div>`;
-    h += `<div class="field-group"><label class="field-label">${tr('مجالات خبرتك', 'Areas of expertise')}</label><div class="check-group">${['Machine Learning', 'Deep Learning', 'NLP'].map(t => `<label class="check-item"><input type="checkbox" value="${t}"> ${t}</label>`).join('')}</div></div>`;
-    h += `<div class="field-group"><label class="field-label">${tr('الأدوات والأطر البرمجية', 'Tools & frameworks')}</label><div class="check-group">${['Python', 'TensorFlow', 'PyTorch'].map(t => `<label class="check-item"><input type="checkbox" value="${t}"> ${t}</label>`).join('')}</div></div>`;
+    h += `<div class="field-group"><label class="field-label">${tr('مجالات خبرتك', 'Areas of expertise')}</label><div class="check-group" data-collect="aiExpertise">${['Machine Learning', 'Deep Learning', 'NLP'].map(t => `<label class="check-item"><input type="checkbox" value="${t}"> ${t}</label>`).join('')}</div></div>`;
+    h += `<div class="field-group"><label class="field-label">${tr('الأدوات والأطر البرمجية', 'Tools & frameworks')}</label><div class="check-group" data-collect="aiTools">${['Python', 'TensorFlow', 'PyTorch'].map(t => `<label class="check-item"><input type="checkbox" value="${t}"> ${t}</label>`).join('')}</div></div>`;
     h += ta(tr('ما الفرق بين Machine Learning و Deep Learning؟', 'What is the difference between Machine Learning and Deep Learning?'), 'mlQ', '');
     h += fld(tr('رابط GitHub / المشاريع', 'GitHub / projects link'), 'aiGit', 'url', false, 'https://github.com/...');
   }
@@ -635,7 +666,7 @@ function r7() {
   let h = `<div class="step-error" id="stepErr"></div><div class="step-title">${tr('أوقات العمل', 'Availability')}</div>`;
   h += `<div class="field-group" id="workModeGroup"><label class="field-label">${tr('نوع العمل المفضل', 'Preferred work mode')} <span class="req">*</span></label><div class="check-group">${modeOpts.map((m, i) => `<label class="check-item"><input type="radio" name="workMode" value="${modeVals[i]}"> ${m}</label>`).join('')}</div><div class="field-error" id="workModeGroup_err"></div></div>`;
   h += `<div class="field-group" id="workTypeGroup"><label class="field-label">${tr('دوام', 'Employment type')} <span class="req">*</span></label><div class="check-group"><label class="check-item"><input type="radio" name="workType" value="full"> ${tr('كامل', 'Full-time')}</label><label class="check-item"><input type="radio" name="workType" value="part"> ${tr('جزئي', 'Part-time')}</label></div><div class="field-error" id="workTypeGroup_err"></div></div>`;
-  h += `<div class="field-group" id="availDaysGroup"><label class="field-label">${tr('أيام العمل المتاحة', 'Available work days')} <span class="req">*</span></label><div class="check-group">${days.map(d => `<label class="check-item"><input type="checkbox" value="${d}"> ${d}</label>`).join('')}</div><div class="field-error" id="availDaysGroup_err"></div></div>`;
+  h += `<div class="field-group" id="availDaysGroup"><label class="field-label">${tr('أيام العمل المتاحة', 'Available work days')} <span class="req">*</span></label><div class="check-group" data-collect="availDays">${days.map(d => `<label class="check-item"><input type="checkbox" value="${d}"> ${d}</label>`).join('')}</div><div class="field-error" id="availDaysGroup_err"></div></div>`;
   h += `<div class="field-group" id="shiftGroup"><label class="field-label">${tr('الفترة المفضلة', 'Preferred shift')} <span class="req">*</span></label><div class="check-group">${shifts.map(([s, v]) => `<label class="check-item"><input type="radio" name="shift" value="${v}"> ${s}</label>`).join('')}</div><div class="field-error" id="shiftGroup_err"></div></div>`;
   h += `<div class="field-group" id="startDateGroup"><label class="field-label">${tr('أقرب موعد للبدء', 'Earliest start date')} <span class="req">*</span></label><div class="check-group">${starts.map(([s, v]) => `<label class="check-item"><input type="radio" name="startDate" value="${v}"> ${s}</label>`).join('')}</div><div class="field-error" id="startDateGroup_err"></div></div>`;
   h += navBtns();
@@ -676,7 +707,7 @@ function r10() {
 }
 
 function r11() {
-  let h = `<div class="step-error" id="stepErr"></div><div class="step-title">${tr('الإقرار والموافقة', 'Agreement & Consent')}</div>`;
+  let h = `<div class="step-error" id="stepErr"></div><div class="step-error" id="submitGlobalErr"></div><div class="step-title">${tr('الإقرار والموافقة', 'Agreement & Consent')}</div>`;
   h += `<div class="info-block">${tr(
     'بتقديم هذا الطلب، أنت تؤكد أن جميع المعلومات المقدمة صحيحة وكاملة، وتوافق على أن Eduzah قد تتواصل معك عبر البريد الإلكتروني أو واتساب.',
     'By submitting this application, you confirm that all information provided is accurate and complete, and you agree that Eduzah may contact you via email or WhatsApp.'
@@ -691,28 +722,102 @@ function r11() {
 
 function goNext() {
   if (!validateCurrentStep()) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+  if (window.FormCollector) FormCollector.snapshotCurrentStep();
   if (S.step < S.stepList.length - 1) { S.step++; renderStep(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 }
 
 function goBack() {
+  if (window.FormCollector) FormCollector.snapshotCurrentStep();
   if (S.step > 0) { S.step--; renderStep(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 }
 
-function submitForm() {
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxsWxPDvk-HdA0dghpuN8IzIsH_0uM5naVDqca1PYciyUjnXfhqgKW0YYuV1O5K6K0jdA/exec';
+
+function collectFormData() {
+  if (window.FormCollector) FormCollector.snapshotCurrentStep();
+
+  const d = window.FormStore ? FormStore.getAll() : {};
+  const g = (k, def) => (k in d) ? d[k] : (def !== undefined ? def : '');
+  const arr = k => Array.isArray(d[k]) ? d[k].join(', ') : '';
+
+  return {
+    position: S.role || g('position'),
+    nameAr: g('nameAr'), nameEn: g('nameEn'),
+    email: g('email'), phone: g('phone'),
+    natid: g('natid'), gender: g('gender'),
+    dob: g('dob'), gov: g('gov'),
+    sohagCenter: g('sohagCenter'), city: g('city'),
+    uni: g('uni'), faculty: g('faculty'),
+    major: g('major'), gradYear: g('gradYear'),
+    status: g('status'),
+    engLevel: g('engLevel'),
+    rateTeach: g('rateTeach', '5'), rateTech: g('rateTech', '5'), rateComm: g('rateComm', '5'),
+    laptop: g('laptop'), internet: g('internet'), camMic: g('camMic'),
+    workMode: g('workMode'), workType: g('workType'),
+    availDays: arr('cb_availDays'),
+    shift: g('shift'), startDate: g('startDate'),
+    videoLink: g('videoLink'),
+    whyEduzah: g('whyEduzah'), whyFit: g('whyFit'),
+    handleQ: g('handleQ'), recorded: g('recorded'),
+    source: g('source'), referral: g('referral'),
+    kidsExp: g('kidsExp'), kidsTeach: g('kidsTeach'), kidsExplain: g('kidsExplain'), kidsComm: g('kidsComm'),
+    beg: g('beg'), logicExp: g('logicExp'), exTeach: g('exTeach'),
+    engMode: g('engMode'), engTeachExp: g('engTeachExp'), engLessonDemo: g('engLessonDemo'), engPort: g('engPort'),
+    engAreas: arr('cb_engAreas'),
+    cyberMode: g('cyberMode'), phishQ: g('phishQ'), cyberGit: g('cyberGit'),
+    cyberTopics: arr('cb_cyberTopics'),
+    dataTools: arr('cb_dataTools'), dataQ: g('dataQ'), dataPort: g('dataPort'),
+    aiExpertise: arr('cb_aiExpertise'), aiTools: arr('cb_aiTools'), mlQ: g('mlQ'), aiGit: g('aiGit'),
+    salesExp: g('salesExp'), salesComm: g('salesComm', '5'), salesScen: g('salesScen'), salesSalary: g('salesSalary'),
+    designTools: arr('cbgroup_designToolsGroup'), designPort: g('designPort'), designYrs: g('designYrs'),
+    designFields: arr('cbgroup_designFieldsGroup'), designProc: g('designProc'),
+    filesUploaded: window.FormStore ? Object.keys(FormStore.getAllFiles()).join(', ') : '',
+    submittedAt: new Date().toISOString(),
+  };
+}
+
+function showSuccessScreen() {
+  document.getElementById('progressBar').style.display = 'none';
+  document.getElementById('stepContent').innerHTML = `
+    <div style="text-align:center;padding:40px 20px">
+      <div style="font-size:64px;margin-bottom:16px">✅</div>
+      <h2 style="color:#1a3c5e;margin-bottom:12px">${tr('تم إرسال طلبك بنجاح!', 'Application submitted successfully!')}</h2>
+      <p style="color:#6b7280;font-size:15px;max-width:400px;margin:0 auto">${tr(
+        'شكراً لتقديمك! سيتواصل معك فريق Eduzah خلال أيام عمل.',
+        'Thank you for applying! The Eduzah team will contact you within a few business days.'
+      )}</p>
+    </div>`;
+}
+
+async function submitForm() {
+  if (window.SubmissionService && SubmissionService.isSubmitting()) return;
+  if (window.FormCollector) FormCollector.snapshotCurrentStep();
+  if (window.SubmissionService) { await SubmissionService.submit(S); return; }
+
   const agree = $('agree');
   if (!agree || !agree.checked) {
-    const err = $('agree_err');
-    const msg = tr('يرجى تأكيد الإقرار قبل إرسال الطلب', 'Please confirm the agreement before submitting');
-    if (err) { err.textContent = msg; err.classList.add('show'); }
-    showStepError(msg);
+    showStepError(tr('يرجى تأكيد الإقرار قبل إرسال الطلب', 'Please confirm the agreement before submitting'));
     window.scrollTo({ top: 0, behavior: 'smooth' });
     return;
   }
-  document.getElementById('formCard').innerHTML = `<div class="success-screen"><div class="success-mark"></div><h2>${tr('تم إرسال طلبك بنجاح', 'Your application was submitted successfully')}</h2><p>${tr(
-    'شكراً لتقديمك في Eduzah. سنراجع طلبك ونتواصل معك عبر واتساب أو البريد الإلكتروني خلال 3-5 أيام عمل.',
-    'Thank you for applying to Eduzah. We will review your application and contact you via WhatsApp or email within 3–5 business days.'
-  )}</p></div>`;
-  document.getElementById('progressBar').innerHTML = '';
+
+  const btn = document.querySelector('.btn-next');
+  if (btn) { btn.disabled = true; btn.textContent = tr('جاري الإرسال...', 'Submitting...'); }
+
+  try {
+    const data = collectFormData();
+    await fetch(GOOGLE_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    showSuccessScreen();
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = tr('إرسال الطلب', 'Submit Application'); }
+    showStepError(tr('حدث خطأ أثناء الإرسال، يرجى المحاولة مرة أخرى', 'An error occurred, please try again'));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 }
 
 S.stepList = [0];
