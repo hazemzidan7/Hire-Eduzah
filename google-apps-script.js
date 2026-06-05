@@ -163,7 +163,7 @@ function doGet(e) {
       'roleQ1','roleQ2','roleQ3','roleQ4',
     ];
 
-    var data = values.slice(1).map(function(row) {
+    var data = values.slice(0).map(function(row) {
       // Raw JSON column gives complete data (all role-specific fields)
       var rawJson = row[RAW_JSON_COL] ? String(row[RAW_JSON_COL]) : '';
       var obj = {};
