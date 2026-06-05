@@ -733,10 +733,11 @@ function goBack() {
 
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxKns_bMFcdq1Krlxb2korVsC2qATWhEf1Gye-lLHoFXw6jyjQvONWNXLnczNZNlB0Wxg/exec';
 
-function collectFormData() {
+function collectFormData(fileUrls) {
   // submitForm already snapshotted — no need to repeat
   const d = window.FormStore ? FormStore.getAll() : {};
   const files = window.FormStore ? FormStore.getAllFiles() : {};
+  const fu = fileUrls || {};
   const g = (k, def) => (k in d) ? d[k] : (def !== undefined ? def : '');
   const arr = k => Array.isArray(d[k]) ? d[k].join(', ') : '';
 
@@ -771,10 +772,16 @@ function collectFormData() {
     salesExp: g('salesExp'), salesComm: g('salesComm', '5'), salesScen: g('salesScen'), salesSalary: g('salesSalary'),
     designTools: arr('cbgroup_designToolsGroup'), designPort: g('designPort'), designYrs: g('designYrs'),
     designFields: arr('cbgroup_designFieldsGroup'), designProc: g('designProc'),
-    cvFile: files.cvFile ? files.cvFile.name : '',
-    photoFile: files.photoFile ? files.photoFile.name : '',
-    natidFront: files.natidFront ? files.natidFront.name : '',
-    natidBack: files.natidBack ? files.natidBack.name : '',
+    // File names (always present)
+    cvFile:      files.cvFile      ? files.cvFile.name      : '',
+    photoFile:   files.photoFile   ? files.photoFile.name   : '',
+    natidFront:  files.natidFront  ? files.natidFront.name  : '',
+    natidBack:   files.natidBack   ? files.natidBack.name   : '',
+    // Cloudinary URLs (populated if upload succeeded)
+    cvFileUrl:      fu.cvFileUrl      || '',
+    photoFileUrl:   fu.photoFileUrl   || '',
+    natidFrontUrl:  fu.natidFrontUrl  || '',
+    natidBackUrl:   fu.natidBackUrl   || '',
     submittedAt: new Date().toISOString(),
   };
 }
@@ -817,13 +824,27 @@ async function submitForm() {
   _setOverlay(true, tr('جاري الإرسال...', 'Submitting your application…'));
 
   try {
-    const data = collectFormData();
+    // Step 1: upload files to Cloudinary (if configured)
+    let fileUrls = {};
+    if (window.CloudinaryUploader && CloudinaryUploader.isConfigured()) {
+      _setOverlay(true, tr('جاري رفع الملفات...', 'Uploading files…'));
+      fileUrls = await CloudinaryUploader.uploadAll((key, i, total) => {
+        _setOverlay(true, tr(`رفع ملف ${i} من ${total}...`, `Uploading file ${i} of ${total}…`));
+      });
+    }
+
+    // Step 2: collect all form data (with file URLs)
+    _setOverlay(true, tr('جاري الإرسال...', 'Sending application…'));
+    const data = collectFormData(fileUrls);
+
+    // Step 3: send to Google Sheets via Apps Script
     await fetch(GOOGLE_SCRIPT_URL, {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify(data),
     });
+
     _setOverlay(false);
     showSuccessScreen();
   } catch (e) {

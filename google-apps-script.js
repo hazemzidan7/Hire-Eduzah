@@ -75,20 +75,25 @@ function doPost(e) {
       d.internet      || '',                          // AA: Internet
       d.camMic        || '',                          // AB: Cam+Mic
       d.videoLink     || '',                          // AC: Video Link
-      d.cvFile        || '',                          // AD: CV File
-      d.photoFile     || '',                          // AE: Photo File
-      d.natidFront    || '',                          // AF: NatID Front
-      d.natidBack     || '',                          // AG: NatID Back
-      d.whyEduzah     || '',                          // AH: Why Eduzah
-      d.whyFit        || '',                          // AI: Why Fit
-      d.handleQ       || '',                          // AJ: Handle Q
-      d.recorded      || '',                          // AK: Recorded
-      d.source        || '',                          // AL: Source
-      d.referral      || '',                          // AM: Referral
-      roleAnswers[0],                                 // AN: Role Q1
-      roleAnswers[1],                                 // AO: Role Q2
-      roleAnswers[2],                                 // AP: Role Q3
-      roleAnswers[3],                                 // AQ: Role Q4
+      d.cvFile        || '',                          // AD: CV File name
+      d.photoFile     || '',                          // AE: Photo File name
+      d.natidFront    || '',                          // AF: NatID Front name
+      d.natidBack     || '',                          // AG: NatID Back name
+      d.cvFileUrl     || '',                          // AH: CV URL (Cloudinary)
+      d.photoFileUrl  || '',                          // AI: Photo URL
+      d.natidFrontUrl || '',                          // AJ: NatID Front URL
+      d.natidBackUrl  || '',                          // AK: NatID Back URL
+      d.whyEduzah     || '',                          // AL: Why Eduzah
+      d.whyFit        || '',                          // AM: Why Fit
+      d.handleQ       || '',                          // AN: Handle Q
+      d.recorded      || '',                          // AO: Recorded
+      d.source        || '',                          // AP: Source
+      d.referral      || '',                          // AQ: Referral
+      roleAnswers[0],                                 // AR: Role Q1
+      roleAnswers[1],                                 // AS: Role Q2
+      roleAnswers[2],                                 // AT: Role Q3
+      roleAnswers[3],                                 // AU: Role Q4
+      JSON.stringify(d),                              // AV: Raw JSON (full payload for admin)
     ];
 
     sheet.appendRow(row);
@@ -127,24 +132,36 @@ function doGet(e) {
       return jsonResponse({ status: 'ok', data: [] });
     }
 
-    // Map column positions to field names (matches the row array in doPost)
-    var FIELDS = [
-      'submittedAt','nameAr','nameEn','phone','email','position',
-      'natid','dob','gender','gov','city',
-      'uni','faculty','major','gradYear','status',
-      'workMode','workType','availDays','shift','startDate',
-      'engLevel','rateTeach','rateTech','rateComm',
-      'laptop','internet','camMic',
-      'videoLink','cvFile','photoFile','natidFront','natidBack',
-      'whyEduzah','whyFit','handleQ','recorded',
-      'source','referral',
-      'roleQ1','roleQ2','roleQ3','roleQ4',
-    ];
+    // Column index of the raw JSON payload (last column, index 46 = AV)
+    var RAW_JSON_COL = 46;
 
     var data = values.slice(1).map(function(row) {
+      // Try to parse raw JSON first (complete data)
+      var rawJson = row[RAW_JSON_COL] ? String(row[RAW_JSON_COL]) : '';
       var obj = {};
+      if (rawJson) {
+        try { obj = JSON.parse(rawJson); } catch (e) { obj = {}; }
+      }
+
+      // Always overlay the structured columns so old rows (no rawJson) still work
+      var FIELDS = [
+        'submittedAt','nameAr','nameEn','phone','email','position',
+        'natid','dob','gender','gov','city',
+        'uni','faculty','major','gradYear','status',
+        'workMode','workType','availDays','shift','startDate',
+        'engLevel','rateTeach','rateTech','rateComm',
+        'laptop','internet','camMic',
+        'videoLink',
+        'cvFile','photoFile','natidFront','natidBack',
+        'cvFileUrl','photoFileUrl','natidFrontUrl','natidBackUrl',
+        'whyEduzah','whyFit','handleQ','recorded',
+        'source','referral',
+        'roleQ1','roleQ2','roleQ3','roleQ4',
+      ];
       FIELDS.forEach(function(f, i) {
-        obj[f] = row[i] !== undefined ? String(row[i]) : '';
+        if (!obj[f] && row[i] !== undefined && row[i] !== '') {
+          obj[f] = String(row[i]);
+        }
       });
       return obj;
     }).filter(function(r) { return r.submittedAt || r.nameAr || r.nameEn; });
