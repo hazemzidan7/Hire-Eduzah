@@ -236,14 +236,36 @@ function showDashboard() {
 }
 
 // ── Data ─────────────────────────────────────────────────────────────────────
+// Uses JSONP to avoid CORS issues with Google Apps Script redirects
+function jsonp(url, timeoutMs) {
+  return new Promise(function(resolve, reject) {
+    var cbName = '_gscb_' + Date.now() + '_' + Math.floor(Math.random() * 9999);
+    var script = document.createElement('script');
+    var timer = setTimeout(function() {
+      cleanup();
+      reject(new Error('Request timed out after ' + (timeoutMs/1000) + 's'));
+    }, timeoutMs || 20000);
+
+    function cleanup() {
+      clearTimeout(timer);
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
+
+    window[cbName] = function(data) { cleanup(); resolve(data); };
+    script.onerror  = function() { cleanup(); reject(new Error('Script load failed — check Apps Script URL')); };
+    script.src = url + '&callback=' + cbName;
+    document.head.appendChild(script);
+  });
+}
+
 async function loadData() {
   setLoading(true);
   try {
     const url = SCRIPT_URL + '?action=getData&token=' + encodeURIComponent(ADMIN_TOKEN);
-    const res  = await fetch(url);
-    const json = await res.json();
+    const json = await jsonp(url, 20000);
 
-    if (json.status !== 'ok') throw new Error(json.message || 'Script error');
+    if (json.status !== 'ok') throw new Error(json.message || 'Script returned an error');
 
     allData = json.data || [];
     document.getElementById('lastRefresh').textContent = 'Updated ' + new Date().toLocaleTimeString();
@@ -251,8 +273,11 @@ async function loadData() {
     applyFilters();
     renderStats();
   } catch (err) {
-    showError('Failed to load data: ' + err.message +
-      '<br><small>Make sure the Apps Script doGet is deployed and the ADMIN_TOKEN matches.</small>');
+    showError(
+      'Failed to load data: ' + err.message +
+      '<br><small>Steps to fix: 1) Open Apps Script → run <b>testDoPost()</b> → authorize. ' +
+      '2) Deploy new version. 3) Make sure ADMIN_TOKEN matches in both files.</small>'
+    );
   } finally {
     setLoading(false);
   }

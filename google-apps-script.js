@@ -107,19 +107,32 @@ function doPost(e) {
 
 /**
  * doGet — Admin dashboard data endpoint
- * Called by admin.html with ?action=getData&token=...
+ * Supports both JSON and JSONP (callback param) to handle browser CORS.
+ * Called by admin.html with ?action=getData&token=...&callback=fnName
  */
 function doGet(e) {
-  try {
-    var params = e ? (e.parameter || {}) : {};
+  var params = e ? (e.parameter || {}) : {};
+  var cb = params.callback || ''; // JSONP callback name
 
-    // Token check
-    if (params.token !== ADMIN_TOKEN) {
-      return jsonResponse({ status: 'error', message: 'Unauthorized' });
+  function respond(obj) {
+    var json = JSON.stringify(obj);
+    if (cb) {
+      // JSONP — wraps response in callback(), bypasses CORS entirely
+      return ContentService
+        .createTextOutput(cb + '(' + json + ')')
+        .setMimeType(ContentService.MimeType.JAVASCRIPT);
     }
+    return ContentService
+      .createTextOutput(json)
+      .setMimeType(ContentService.MimeType.JSON);
+  }
 
+  try {
+    if (params.token !== ADMIN_TOKEN) {
+      return respond({ status: 'error', message: 'Unauthorized' });
+    }
     if (params.action !== 'getData') {
-      return jsonResponse({ status: 'error', message: 'Unknown action' });
+      return respond({ status: 'error', message: 'Unknown action' });
     }
 
     var ss    = SPREADSHEET_ID
@@ -129,35 +142,35 @@ function doGet(e) {
     var values = sheet.getDataRange().getValues();
 
     if (values.length < 2) {
-      return jsonResponse({ status: 'ok', data: [] });
+      return respond({ status: 'ok', data: [] });
     }
 
-    // Column index of the raw JSON payload (last column, index 46 = AV)
+    // Column index of the raw JSON payload (last column AV = index 46)
     var RAW_JSON_COL = 46;
 
+    var FIELDS = [
+      'submittedAt','nameAr','nameEn','phone','email','position',
+      'natid','dob','gender','gov','city',
+      'uni','faculty','major','gradYear','status',
+      'workMode','workType','availDays','shift','startDate',
+      'engLevel','rateTeach','rateTech','rateComm',
+      'laptop','internet','camMic',
+      'videoLink',
+      'cvFile','photoFile','natidFront','natidBack',
+      'cvFileUrl','photoFileUrl','natidFrontUrl','natidBackUrl',
+      'whyEduzah','whyFit','handleQ','recorded',
+      'source','referral',
+      'roleQ1','roleQ2','roleQ3','roleQ4',
+    ];
+
     var data = values.slice(1).map(function(row) {
-      // Try to parse raw JSON first (complete data)
+      // Raw JSON column gives complete data (all role-specific fields)
       var rawJson = row[RAW_JSON_COL] ? String(row[RAW_JSON_COL]) : '';
       var obj = {};
       if (rawJson) {
-        try { obj = JSON.parse(rawJson); } catch (e) { obj = {}; }
+        try { obj = JSON.parse(rawJson); } catch (ex) { obj = {}; }
       }
-
-      // Always overlay the structured columns so old rows (no rawJson) still work
-      var FIELDS = [
-        'submittedAt','nameAr','nameEn','phone','email','position',
-        'natid','dob','gender','gov','city',
-        'uni','faculty','major','gradYear','status',
-        'workMode','workType','availDays','shift','startDate',
-        'engLevel','rateTeach','rateTech','rateComm',
-        'laptop','internet','camMic',
-        'videoLink',
-        'cvFile','photoFile','natidFront','natidBack',
-        'cvFileUrl','photoFileUrl','natidFrontUrl','natidBackUrl',
-        'whyEduzah','whyFit','handleQ','recorded',
-        'source','referral',
-        'roleQ1','roleQ2','roleQ3','roleQ4',
-      ];
+      // Overlay structured columns so old rows (no rawJson) still work
       FIELDS.forEach(function(f, i) {
         if (!obj[f] && row[i] !== undefined && row[i] !== '') {
           obj[f] = String(row[i]);
@@ -166,10 +179,10 @@ function doGet(e) {
       return obj;
     }).filter(function(r) { return r.submittedAt || r.nameAr || r.nameEn; });
 
-    return jsonResponse({ status: 'ok', data: data });
+    return respond({ status: 'ok', data: data });
 
   } catch (err) {
-    return jsonResponse({ status: 'error', message: err.toString() });
+    return respond({ status: 'error', message: err.toString() });
   }
 }
 
