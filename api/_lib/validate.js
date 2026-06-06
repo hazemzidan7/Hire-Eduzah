@@ -38,28 +38,33 @@ function isEmail(s)    { return /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,10}$/.tes
 function isPhone(s)    { return /^[\d\s\+\-\(\)]{7,20}$/.test(String(s)); }
 function isNatId(s)    { return /^\d{14}$/.test(String(s)); }
 function isCloudinary(url) {
-  // Only accept URLs from our specific Cloudinary account
   const cloud = process.env.CLOUDINARY_CLOUD_NAME || 'dnfcayldd';
   return typeof url === 'string' &&
     url.startsWith(`https://res.cloudinary.com/${cloud}/`);
 }
-function isGDriveUrl(url) {
-  return !url || typeof url !== 'string' || url.startsWith('https://drive.google.com/');
+
+function isHttpsUrl(url) {
+  if (!url) return true; // empty is allowed
+  try { const u = new URL(url); return u.protocol === 'https:'; } catch { return false; }
 }
 
 function validateApplication(d) {
   const errs = [];
-  if (!d.nameAr || String(d.nameAr).trim().length < 2)     errs.push('nameAr');
-  if (!d.nameEn || String(d.nameEn).trim().length < 2)     errs.push('nameEn');
-  if (!isEmail(d.email))                                     errs.push('email');
-  if (!isPhone(d.phone))                                     errs.push('phone');
-  if (!ALLOWED_POSITIONS.includes(d.position))               errs.push('position');
-  if (d.natid && !isNatId(d.natid))                         errs.push('natid');
-  // Validate file URLs — must be Cloudinary or empty
+  // Required text fields
+  if (!d.nameAr || String(d.nameAr).trim().length < 2) errs.push('nameAr');
+  if (!d.nameEn || String(d.nameEn).trim().length < 2) errs.push('nameEn');
+  if (!isEmail(d.email))                                errs.push('email');
+  if (!isPhone(d.phone))                                errs.push('phone');
+  if (!ALLOWED_POSITIONS.includes(d.position))          errs.push('position');
+  // Optional fields — only validate format if present
+  if (d.natid && !isNatId(d.natid))                    errs.push('natid');
+  if (d.videoLink && !isHttpsUrl(d.videoLink))          errs.push('videoLink');
+  // File URLs: must be from our Cloudinary account if provided
   ['cvFileUrl','photoFileUrl','natidFrontUrl','natidBackUrl'].forEach(k => {
     if (d[k] && !isCloudinary(d[k])) errs.push(k + '_invalid_url');
   });
-  if (d.videoLink && !isGDriveUrl(d.videoLink))              errs.push('videoLink');
+  // Log for debugging (visible in Vercel function logs)
+  if (errs.length > 0) console.log('[validate] failed fields:', errs, '| position:', d.position);
   return errs;
 }
 
