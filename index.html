@@ -13,7 +13,7 @@
 <div class="wrap">
   <header class="header">
     <div class="header-brand">
-      <img src="img/eduzah-logo.svg" alt="Eduzah" class="logo-img" width="168" height="40" decoding="async" id="siteLogo" />
+      <img src="img/logo_1.PNG" alt="Eduzah" class="logo-img" decoding="async" id="siteLogo" />
     </div>
     <p class="subtitle" id="headerSubtitle">انضم لفريقنا — قدّم على وظيفة</p>
   </header>
@@ -37,7 +37,7 @@
 (function () {
   var logo = document.getElementById('siteLogo');
   if (!logo) return;
-  var fallbacks = ['img/logo.png', 'img/logo_1.PNG', 'logo.png'];
+  var fallbacks = ['img/eduzah-logo.svg', 'img/logo.png', 'logo.png'];
   var i = 0;
   logo.addEventListener('error', function () {
     if (i < fallbacks.length) {
