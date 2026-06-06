@@ -708,27 +708,12 @@ function showDetail(idx) {
 function closeModal() { document.getElementById('detailModal').classList.add('hidden'); }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeLightbox(); } });
 
-// ── PDF viewer (fetches signed URL to bypass Cloudinary 401) ─────────────────
-async function openPdf(btn, url) {
-  const origHtml = btn.innerHTML;
-  btn.disabled = true;
-  btn.textContent = 'Loading…';
-  try {
-    const resp = await fetch('/api/get-file-url', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url }),
-    });
-    if (!resp.ok) throw new Error('api-error');
-    const { url: signed } = await resp.json();
-    window.open(signed, '_blank', 'noopener');
-  } catch {
-    // Fallback: try direct URL anyway
-    window.open(url, '_blank', 'noopener');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = origHtml;
-  }
+// ── PDF viewer — proxy through server to bypass Cloudinary 401 ───────────────
+function openPdf(btn, url) {
+  // The proxy endpoint signs the Cloudinary URL server-side on every request,
+  // so there is no fixed expiry from the browser's perspective.
+  const proxyUrl = '/api/get-file-url?' + new URLSearchParams({ url });
+  window.open(proxyUrl, '_blank', 'noopener');
 }
 
 // ── Lightbox ──────────────────────────────────────────────────────────────────
