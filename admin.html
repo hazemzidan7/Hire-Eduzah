@@ -190,14 +190,8 @@
 
 <script>
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
-// Change this password to something secure!
-const ADMIN_PASSWORD = 'Eduzah@2025';
-
-// Your Apps Script URL (same one used in form.js)
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwjuOQlKC9wQWt5_3i0xzlAKiAriqVv4YfcjEz3-BZh-lgeR9ukX-XsN8mn3CLdirGaWw/exec';
-
-// Token sent to Apps Script for data access
-const ADMIN_TOKEN  = 'eduzah-admin-token-2025';
+// Password is validated SERVER-SIDE via /api/admin — not stored here.
+// Set ADMIN_PASSWORD environment variable on Vercel.
 
 const PAGE_SIZE = 25;
 // ─────────────────────────────────────────────────────────────────────────────
@@ -209,14 +203,39 @@ let sortKey      = 'submittedAt';
 let sortAsc      = false;
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
-function doLogin() {
-  const pwd = document.getElementById('adminPwd').value;
-  if (pwd === ADMIN_PASSWORD) {
+async function doLogin() {
+  const pwd = document.getElementById('adminPwd').value.trim();
+  if (!pwd) return;
+
+  const btn = document.querySelector('#loginScreen button');
+  if (btn) { btn.disabled = true; btn.textContent = 'Signing in…'; }
+
+  try {
+    // Validate password server-side
+    const res = await fetch('/api/admin', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ password: pwd }),
+    });
+
+    if (res.status === 401) {
+      document.getElementById('loginErr').classList.remove('hidden');
+      document.getElementById('adminPwd').classList.add('border-red-400');
+      return;
+    }
+    if (!res.ok) throw new Error('Server error ' + res.status);
+
+    // Password correct — store for subsequent data requests
     sessionStorage.setItem('eduzah_admin', '1');
-    showDashboard();
-  } else {
+    sessionStorage.setItem('eduzah_pwd', pwd);
+
+    const rows = await res.json();
+    showDashboard(rows);
+  } catch (err) {
+    document.getElementById('loginErr').textContent = 'Error: ' + err.message;
     document.getElementById('loginErr').classList.remove('hidden');
-    document.getElementById('adminPwd').classList.add('border-red-400');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Sign In'; }
   }
 }
 
@@ -226,66 +245,67 @@ function logout() {
 }
 
 function checkAuth() {
-  if (sessionStorage.getItem('eduzah_admin') === '1') showDashboard();
+  // Can't restore session without re-validating password server-side
+  // User must log in again each session (sessionStorage clears on tab close)
+  sessionStorage.removeItem('eduzah_admin');
+  sessionStorage.removeItem('eduzah_pwd');
 }
 
-function showDashboard() {
+function showDashboard(preloadedRows) {
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('dashboard').classList.remove('hidden');
-  loadData();
+  if (preloadedRows) {
+    processRows(preloadedRows);
+  } else {
+    loadData();
+  }
 }
 
-// ── Supabase config ───────────────────────────────────────────────────────────
-const SUPABASE_URL = 'https://ekmcogwofozrbmvmyfdq.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVrbWNvZ3dvZm96cmJtdm15ZmRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3MTg5MDUsImV4cCI6MjA5NjI5NDkwNX0.Aw6N1qXXHwC1xVs3oC7bNfd9h1iml1tsp25jdFKir54';
-
 // ── Data ──────────────────────────────────────────────────────────────────────
+function processRows(rows) {
+  allData = rows.map(row => Object.assign({}, row.data || {}, {
+    id:            row.id,
+    submittedAt:   row.submitted_at,
+    position:      row.position        || (row.data && row.data.position),
+    nameAr:        row.name_ar         || (row.data && row.data.nameAr),
+    nameEn:        row.name_en         || (row.data && row.data.nameEn),
+    phone:         row.phone           || (row.data && row.data.phone),
+    email:         row.email           || (row.data && row.data.email),
+    workMode:      row.work_mode       || (row.data && row.data.workMode),
+    workType:      row.work_type       || (row.data && row.data.workType),
+    city:          row.city            || (row.data && row.data.city),
+    gov:           row.gov             || (row.data && row.data.gov),
+    videoLink:     row.video_link      || (row.data && row.data.videoLink),
+    cvFileUrl:     row.cv_file_url     || (row.data && row.data.cvFileUrl),
+    photoFileUrl:  row.photo_file_url  || (row.data && row.data.photoFileUrl),
+    natidFrontUrl: row.natid_front_url || (row.data && row.data.natidFrontUrl),
+    natidBackUrl:  row.natid_back_url  || (row.data && row.data.natidBackUrl),
+  }));
+  document.getElementById('lastRefresh').textContent = 'Updated ' + new Date().toLocaleTimeString();
+  document.getElementById('lastRefresh').classList.remove('hidden');
+  applyFilters();
+  renderStats();
+}
+
 async function loadData() {
   setLoading(true);
   try {
-    const res = await fetch(
-      SUPABASE_URL + '/rest/v1/applications?select=*&order=submitted_at.desc',
-      {
-        headers: {
-          'apikey':        SUPABASE_KEY,
-          'Authorization': 'Bearer ' + SUPABASE_KEY,
-        }
-      }
-    );
-    if (!res.ok) throw new Error('HTTP ' + res.status + ' — ' + await res.text());
+    const pwd = sessionStorage.getItem('eduzah_pwd');
+    if (!pwd) { logout(); return; }
 
-    const rows = await res.json();
-
-    // Merge top-level columns with the full `data` JSONB for complete field access
-    allData = rows.map(row => {
-      const full = Object.assign({}, row.data || {}, {
-        id:             row.id,
-        submittedAt:    row.submitted_at,
-        position:       row.position       || (row.data && row.data.position),
-        nameAr:         row.name_ar        || (row.data && row.data.nameAr),
-        nameEn:         row.name_en        || (row.data && row.data.nameEn),
-        phone:          row.phone          || (row.data && row.data.phone),
-        email:          row.email          || (row.data && row.data.email),
-        workMode:       row.work_mode      || (row.data && row.data.workMode),
-        workType:       row.work_type      || (row.data && row.data.workType),
-        city:           row.city           || (row.data && row.data.city),
-        gov:            row.gov            || (row.data && row.data.gov),
-        videoLink:      row.video_link     || (row.data && row.data.videoLink),
-        cvFileUrl:      row.cv_file_url    || (row.data && row.data.cvFileUrl),
-        photoFileUrl:   row.photo_file_url || (row.data && row.data.photoFileUrl),
-        natidFrontUrl:  row.natid_front_url|| (row.data && row.data.natidFrontUrl),
-        natidBackUrl:   row.natid_back_url || (row.data && row.data.natidBackUrl),
-      });
-      return full;
+    const res = await fetch('/api/admin', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ password: pwd }),
     });
 
-    document.getElementById('lastRefresh').textContent = 'Updated ' + new Date().toLocaleTimeString();
-    document.getElementById('lastRefresh').classList.remove('hidden');
-    applyFilters();
-    renderStats();
+    if (res.status === 401) { logout(); return; }
+    if (!res.ok) throw new Error('Server error ' + res.status);
+
+    const rows = await res.json();
+    processRows(rows);
   } catch (err) {
-    showError('Failed to load data: ' + err.message +
-      '<br><small>Make sure the Supabase table "applications" exists and RLS policies are set.</small>');
+    showError('Failed to load data: ' + err.message);
   } finally {
     setLoading(false);
   }
