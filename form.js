@@ -967,12 +967,14 @@ async function submitForm() {
     });
     if (!submitRes.ok) {
       const err = await submitRes.json().catch(() => ({}));
+      console.error('[submit] server error', submitRes.status, JSON.stringify(err));
       throw new Error(err.error || 'Submission failed');
     }
 
     _setOverlay(false);
     showSuccessScreen();
   } catch (e) {
+    console.error('[submit] caught:', e.message);
     _setOverlay(false);
     showStepError(tr('حدث خطأ أثناء الإرسال، يرجى المحاولة مرة أخرى', 'An error occurred, please try again'));
     window.scrollTo({ top: 0, behavior: 'smooth' });
