@@ -837,13 +837,33 @@ async function submitForm() {
     _setOverlay(true, tr('جاري الإرسال...', 'Sending application…'));
     const data = collectFormData(fileUrls);
 
-    // Step 3: send to Google Sheets via Apps Script
-    await fetch(GOOGLE_SCRIPT_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify(data),
-    });
+    // Step 3: save to Supabase
+    if (window.SupabaseClient) {
+      await SupabaseClient.insert('applications', {
+        position:        data.position      || null,
+        name_ar:         data.nameAr        || null,
+        name_en:         data.nameEn        || null,
+        phone:           data.phone         || null,
+        email:           data.email         || null,
+        work_mode:       data.workMode      || null,
+        work_type:       data.workType      || null,
+        city:            data.city          || null,
+        gov:             data.gov           || null,
+        video_link:      data.videoLink     || null,
+        cv_file_url:     data.cvFileUrl     || null,
+        photo_file_url:  data.photoFileUrl  || null,
+        natid_front_url: data.natidFrontUrl || null,
+        natid_back_url:  data.natidBackUrl  || null,
+        data:            data,
+      });
+    } else {
+      // Fallback: Apps Script
+      await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST', mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify(data),
+      });
+    }
 
     _setOverlay(false);
     showSuccessScreen();

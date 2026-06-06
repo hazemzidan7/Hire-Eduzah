@@ -235,49 +235,57 @@ function showDashboard() {
   loadData();
 }
 
-// ── Data ─────────────────────────────────────────────────────────────────────
-// Uses JSONP to avoid CORS issues with Google Apps Script redirects
-function jsonp(url, timeoutMs) {
-  return new Promise(function(resolve, reject) {
-    var cbName = '_gscb_' + Date.now() + '_' + Math.floor(Math.random() * 9999);
-    var script = document.createElement('script');
-    var timer = setTimeout(function() {
-      cleanup();
-      reject(new Error('Request timed out after ' + (timeoutMs/1000) + 's'));
-    }, timeoutMs || 20000);
+// ── Supabase config ───────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://ekmcogwofozrbmvmyfdq.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVrbWNvZ3dvZm96cmJtdm15ZmRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3MTg5MDUsImV4cCI6MjA5NjI5NDkwNX0.Aw6N1qXXHwC1xVs3oC7bNfd9h1iml1tsp25jdFKir54';
 
-    function cleanup() {
-      clearTimeout(timer);
-      delete window[cbName];
-      if (script.parentNode) script.parentNode.removeChild(script);
-    }
-
-    window[cbName] = function(data) { cleanup(); resolve(data); };
-    script.onerror  = function() { cleanup(); reject(new Error('Script load failed — check Apps Script URL')); };
-    script.src = url + '&callback=' + cbName;
-    document.head.appendChild(script);
-  });
-}
-
+// ── Data ──────────────────────────────────────────────────────────────────────
 async function loadData() {
   setLoading(true);
   try {
-    const url = SCRIPT_URL + '?action=getData&token=' + encodeURIComponent(ADMIN_TOKEN);
-    const json = await jsonp(url, 20000);
+    const res = await fetch(
+      SUPABASE_URL + '/rest/v1/applications?select=*&order=submitted_at.desc',
+      {
+        headers: {
+          'apikey':        SUPABASE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_KEY,
+        }
+      }
+    );
+    if (!res.ok) throw new Error('HTTP ' + res.status + ' — ' + await res.text());
 
-    if (json.status !== 'ok') throw new Error(json.message || 'Script returned an error');
+    const rows = await res.json();
 
-    allData = json.data || [];
+    // Merge top-level columns with the full `data` JSONB for complete field access
+    allData = rows.map(row => {
+      const full = Object.assign({}, row.data || {}, {
+        id:             row.id,
+        submittedAt:    row.submitted_at,
+        position:       row.position       || (row.data && row.data.position),
+        nameAr:         row.name_ar        || (row.data && row.data.nameAr),
+        nameEn:         row.name_en        || (row.data && row.data.nameEn),
+        phone:          row.phone          || (row.data && row.data.phone),
+        email:          row.email          || (row.data && row.data.email),
+        workMode:       row.work_mode      || (row.data && row.data.workMode),
+        workType:       row.work_type      || (row.data && row.data.workType),
+        city:           row.city           || (row.data && row.data.city),
+        gov:            row.gov            || (row.data && row.data.gov),
+        videoLink:      row.video_link     || (row.data && row.data.videoLink),
+        cvFileUrl:      row.cv_file_url    || (row.data && row.data.cvFileUrl),
+        photoFileUrl:   row.photo_file_url || (row.data && row.data.photoFileUrl),
+        natidFrontUrl:  row.natid_front_url|| (row.data && row.data.natidFrontUrl),
+        natidBackUrl:   row.natid_back_url || (row.data && row.data.natidBackUrl),
+      });
+      return full;
+    });
+
     document.getElementById('lastRefresh').textContent = 'Updated ' + new Date().toLocaleTimeString();
     document.getElementById('lastRefresh').classList.remove('hidden');
     applyFilters();
     renderStats();
   } catch (err) {
-    showError(
-      'Failed to load data: ' + err.message +
-      '<br><small>Steps to fix: 1) Open Apps Script → run <b>testDoPost()</b> → authorize. ' +
-      '2) Deploy new version. 3) Make sure ADMIN_TOKEN matches in both files.</small>'
-    );
+    showError('Failed to load data: ' + err.message +
+      '<br><small>Make sure the Supabase table "applications" exists and RLS policies are set.</small>');
   } finally {
     setLoading(false);
   }
