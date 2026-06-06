@@ -1,5 +1,5 @@
 const STEPS = ['Role', 'Personal', 'Academic', 'Uploads', 'Role-Specific', 'Assessment', 'Equipment', 'Availability', 'Video', 'Screening', 'Referral', 'Agreement'];
-const TEACHING = ['kids-coding', 'prog-fundamentals', 'cybersecurity', 'data-analysis', 'ai-instructor', 'english-instructor'];
+const TEACHING = ['kids-coding', 'prog-fundamentals', 'cybersecurity', 'data-analysis', 'ai-instructor', 'english-instructor', 'robotics-instructor'];
 const VIDEO_HINTS = {
   'kids-coding': { ar: 'سجّل فيديو مدته 1–2 دقيقة تشرح فيه مفهوماً بسيطاً في البرمجة لطفل', en: 'Record a 1–2 minute video explaining a simple programming concept for a child' },
   'prog-fundamentals': { ar: 'سجّل فيديو تشرح فيه مسألة برمجية بسيطة وطريقة حلها', en: 'Record a video explaining a simple programming problem and how you solve it' },
@@ -9,6 +9,8 @@ const VIDEO_HINTS = {
   'english-instructor': { ar: 'سجّل فيديو مدته 1–2 دقيقة تقدّم فيه نفسك وتشرح مفهوماً إنجليزياً بسيطاً لمتعلم بالغ', en: 'Record a 1–2 minute video introducing yourself and teaching a basic English concept to an adult learner' },
   'sales': { ar: 'سجّل فيديو مدته دقيقة تقدّم فيه نفسك وتبيّن مهاراتك في التواصل والبيع', en: 'Record a one-minute video introducing yourself and demonstrating communication and sales skills' },
   'designer': { ar: 'سجّل فيديو تشرح فيه عملية التصميم عندك', en: 'Record a video walking through your design process' },
+  'robotics-instructor': { ar: 'سجّل فيديو مدته 1–2 دقيقة تشرح فيه مفهوماً في الروبوتكس أو الإلكترونيات بأسلوب مناسب للطلاب', en: 'Record a 1–2 minute video explaining a robotics or electronics concept in a student-friendly way' },
+  'project-management': { ar: 'سجّل فيديو قصير تشرح فيه كيف تدير مشروعاً تعليمياً أو تدريبياً من البداية للنهاية', en: 'Record a short video explaining how you manage an educational or training project from start to finish' },
 };
 const ROLE_GROUPS = {
   'Kids Track': { ar: 'مسار الأطفال', en: 'Kids Track' },
@@ -24,8 +26,10 @@ const ROLES = [
   { id: 'cybersecurity', name: 'Cybersecurity Instructor', track: { ar: 'أونلاين / أوفلاين', en: 'Online / Offline' }, group: 'Technical Roles' },
   { id: 'data-analysis', name: 'Data Analysis Instructor', track: { ar: 'حضوري فقط', en: 'Offline only' }, group: 'Technical Roles' },
   { id: 'ai-instructor', name: 'AI Instructor', track: { ar: 'حضوري فقط', en: 'Offline only' }, group: 'Technical Roles' },
+  { id: 'robotics-instructor', name: 'Robotics Instructor', track: { ar: 'STEM / روبوتكس', en: 'STEM / Robotics' }, group: 'Technical Roles' },
   { id: 'sales', name: 'Sales Representative', track: { ar: 'غير تعليمي', en: 'Non-Teaching' }, group: 'Non-Teaching' },
   { id: 'designer', name: 'Graphic Designer', track: { ar: 'غير تعليمي', en: 'Non-Teaching' }, group: 'Non-Teaching' },
+  { id: 'project-management', name: 'Project Manager', track: { ar: 'تعليم وتكنولوجيا تعليمية', en: 'Education & EdTech' }, group: 'Non-Teaching' },
 ];
 const GOV = ['Alexandria', 'Aswan', 'Asyut', 'Beheira', 'Beni Suef', 'Cairo', 'Dakahlia', 'Damietta', 'Faiyum', 'Gharbia', 'Giza', 'Ismailia', 'Kafr El Sheikh', 'Luxor', 'Matruh', 'Minya', 'Monufia', 'New Valley', 'North Sinai', 'Port Said', 'Qalyubia', 'Qena', 'Red Sea', 'Sharqia', 'Sohag', 'South Sinai', 'Suez'];
 const SOHAG = ['Akhmim', 'El Balyana', 'Dar El Salam', 'Girga', 'Juhaynah', 'El Mansha', 'El Maragha', 'Saqultah', 'Sohag', 'Tahta', 'Tama'];
@@ -386,6 +390,16 @@ function validateCurrentStep() {
       if (!checkedIn('#designFieldsGroup input[type=checkbox]').length) { setGroupError('designFieldsGroup', tr('يرجى اختيار مجال واحد على الأقل', 'Please select at least one field')); ok = false; }
       if (!val('designProc')) { setFieldError('designProc', req); ok = false; }
     }
+    if (r === 'robotics-instructor') {
+      if (!checkedIn('#roboticsToolsGroup input[type=checkbox]').length) { setGroupError('roboticsToolsGroup', tr('يرجى اختيار أداة واحدة على الأقل', 'Please select at least one tool')); ok = false; }
+      if (!radio('roboticsKids')) { setGroupError('roboticsKidsGroup', answer); ok = false; }
+      if (!val('roboticsQ')) { setFieldError('roboticsQ', req); ok = false; }
+    }
+    if (r === 'project-management') {
+      if (!val('pmPastProjects')) { setFieldError('pmPastProjects', req); ok = false; }
+      if (!radio('pmEdTech')) { setGroupError('pmEdTechGroup', answer); ok = false; }
+      if (!val('pmRole')) { setFieldError('pmRole', req); ok = false; }
+    }
     if (!ok) showStepError(completeShort);
     return ok;
   }
@@ -434,11 +448,10 @@ function validateCurrentStep() {
   }
 
   if (step === 10) {
-    if (!val('source')) {
-      setFieldError('source', tr('يرجى اختيار كيف عرفت عنا', 'Please select how you heard about us'));
-      ok = false;
-      showStepError(tr('يرجى إكمال الحقل المطلوب', 'Please complete the required field'));
-    }
+    if (!val('source')) { setFieldError('source', tr('يرجى اختيار كيف عرفت عنا', 'Please select how you heard about us')); ok = false; }
+    if (!radio('eduzahService')) { setGroupError('eduzahServiceGroup', tr('يرجى الإجابة على هذا السؤال', 'Please answer this question')); ok = false; }
+    if (radio('eduzahService') === 'yes' && !val('eduzahServiceType')) { setFieldError('eduzahServiceType', tr('يرجى تحديد نوع الخدمة', 'Please specify the service type')); ok = false; }
+    if (!ok) showStepError(tr('يرجى إكمال جميع الحقول المطلوبة', 'Please complete all required fields'));
     return ok;
   }
 
@@ -620,6 +633,24 @@ function r4() {
     h += `<div class="field-group" id="designFieldsGroup"><label class="field-label">${tr('مجال التصميم المفضل', 'Preferred design field')} <span class="req">*</span></label><div class="check-group">${['UI/UX', 'Branding', 'Social Media', 'Motion'].map(f => `<label class="check-item"><input type="checkbox" value="${f}"> ${f}</label>`).join('')}</div><div class="field-error" id="designFieldsGroup_err"></div></div>`;
     h += ta(tr('صف عملية التصميم عندك', 'Describe your design process'), 'designProc', tr('من الـ brief للتسليم النهائي', 'From brief to final delivery'));
   }
+  if (r === 'robotics-instructor') {
+    h += `<div class="note-box">${tr('نرحب بالمتقدمين ذوي الخبرة في تدريس الروبوتكس وSTEM للأطفال والطلاب', 'We welcome applicants experienced in teaching Robotics and STEM to children and students')}</div>`;
+    h += `<div class="field-group" id="roboticsToolsGroup"><label class="field-label">${tr('الأدوات والتقنيات التي تتقنها', 'Tools & technologies you work with')} <span class="req">*</span></label><div class="check-group">${['Arduino', 'Raspberry Pi', 'Sensors & Actuators', 'Electronics Basics', 'LEGO Mindstorms', 'Scratch / MIT App Inventor', '3D Printing'].map(t => `<label class="check-item"><input type="checkbox" value="${t}"> ${t}</label>`).join('')}</div><div class="field-error" id="roboticsToolsGroup_err"></div></div>`;
+    h += `<div class="field-group"><label class="field-label">${tr('مجالات الخبرة الإضافية', 'Additional areas of expertise')}</label><div class="check-group" data-collect="roboticsAreas">${['STEM Education', 'Robotics Programming', 'Electronics Design', 'Robotics Competitions & Olympiads'].map(t => `<label class="check-item"><input type="checkbox" value="${t}"> ${t}</label>`).join('')}</div></div>`;
+    h += yesNo('roboticsKids', tr('هل لديك خبرة في التدريس أو التعامل مع الأطفال والطلاب؟', 'Do you have experience teaching or working with children and students?'));
+    h += ta(tr('كيف تشرح مفهوم الدائرة الكهربائية (Circuit) لطالب مبتدئ؟', 'How would you explain an electric circuit to a beginner student?'), 'roboticsQ', tr('اشرح بأسلوب بسيط ومناسب للعمر', 'Explain in a simple, age-appropriate way'));
+    h += ta(tr('صف تجربتك في مسابقات الروبوتكس أو STEM (إن وجدت)', 'Describe your experience with robotics or STEM competitions (if any)'), 'roboticsComp', 'WRO, First Lego League, local competitions...', false);
+    h += fld(tr('رابط مشاريع / GitHub / YouTube (اختياري)', 'Projects / GitHub / YouTube link (optional)'), 'roboticsPort', 'url', false, 'https://...');
+  }
+  if (r === 'project-management') {
+    h += `<div class="note-box">${tr('نرحب بمتقدمين ذوي خبرة في إدارة المشاريع التعليمية والتدريبية وتكنولوجيا التعليم (EdTech)', 'We welcome applicants with experience managing educational, training, or EdTech projects')}</div>`;
+    h += ta(tr('ما هي أبرز المشاريع التي عملت عليها سابقاً؟', 'What are the most notable projects you have worked on?'), 'pmPastProjects', tr('اذكر اسم المشروع، وصفه المختصر، والجهة، والفترة الزمنية', 'Include project name, brief description, organization, and timeline'));
+    h += yesNo('pmEdTech', tr('هل كانت مشاريعك مرتبطة بمجال التعليم أو التدريب أو تكنولوجيا التعليم (EdTech)؟', 'Were your projects related to education, training, or educational technology (EdTech)?'));
+    h += ta(tr('ما هو دورك داخل هذه المشاريع؟', 'What was your specific role within these projects?'), 'pmRole', tr('قائد مشروع، منسق، مخطط استراتيجي، مطور منهج...', 'Project lead, coordinator, strategic planner, curriculum developer...'));
+    h += `<div class="field-group"><label class="field-label">${tr('المنهجيات التي تستخدمها في إدارة المشاريع', 'Project management methodologies you use')}</label><div class="check-group" data-collect="pmMethodologies">${['Agile / Scrum', 'PMP', 'Waterfall', 'Kanban', 'PRINCE2'].map(t => `<label class="check-item"><input type="checkbox" value="${t}"> ${t}</label>`).join('')}</div></div>`;
+    h += ta(tr('كيف تتعامل مع تغيير متطلبات المشروع في منتصف التنفيذ؟', 'How do you handle changing project requirements mid-execution?'), 'pmChallenge', tr('اذكر مثالاً من تجربتك', 'Share an example from your experience'), false);
+    h += fld(tr('رابط Portfolio / LinkedIn / مشاريع موثقة (اختياري)', 'Portfolio / LinkedIn / documented projects link (optional)'), 'pmPort', 'url', false, 'https://...');
+  }
   h += navBtns();
   document.getElementById('stepContent').innerHTML = h;
 }
@@ -699,11 +730,41 @@ function r10() {
   const sources = isEn()
     ? ['Social media', 'Friend or colleague', 'LinkedIn', 'Job board', 'Search engine', 'Other']
     : ['سوشيال ميديا', 'صديق أو زميل', 'LinkedIn', 'بورد وظائف', 'محرك البحث', 'أخرى'];
-  let h = `<div class="step-error" id="stepErr"></div><div class="step-title">${tr('طريقة التعرف علينا', 'How did you hear about us?')}</div>`;
+  const serviceTypes = isEn()
+    ? ['Course', 'Consultation', 'Training', 'Other']
+    : ['كورس', 'استشارة', 'تدريب', 'أخرى'];
+
+  let h = `<div class="step-error" id="stepErr"></div><div class="step-title">${tr('معلومات إضافية', 'Additional Information')}</div>`;
   h += sel(tr('كيف عرفت عن Eduzah؟', 'How did you hear about Eduzah?'), 'source', sources);
   h += fld(tr('تم ترشيحك من قِبَل (اختياري)', 'Referred by (optional)'), 'referral', 'text', false, tr('الاسم الكامل للشخص الذي رشّحك', 'Full name of the person who referred you'));
+  h += `<div class="field-group" id="eduzahServiceGroup">
+    <label class="field-label">${tr('هل حصلت على أي خدمة من خلال شركة Eduzah من قبل؟', 'Have you previously received any service from Eduzah?')} <span class="req">*</span></label>
+    <div class="check-group">
+      <label class="check-item"><input type="radio" name="eduzahService" value="yes"> ${tr('نعم', 'Yes')}</label>
+      <label class="check-item"><input type="radio" name="eduzahService" value="no"> ${tr('لا', 'No')}</label>
+    </div>
+    <div class="field-error" id="eduzahServiceGroup_err"></div>
+  </div>
+  <div id="eduzahServiceDetail" style="display:none;margin-top:-0.5rem">
+    ${sel(tr('ما هي الخدمة التي حصلت عليها؟', 'What service did you receive?'), 'eduzahServiceType', serviceTypes, true)}
+  </div>`;
   h += navBtns();
+
   document.getElementById('stepContent').innerHTML = h;
+
+  // Wire conditional field
+  document.querySelectorAll('input[name="eduzahService"]').forEach(function(el) {
+    el.addEventListener('change', function() {
+      var detail = document.getElementById('eduzahServiceDetail');
+      if (detail) detail.style.display = this.value === 'yes' ? 'block' : 'none';
+    });
+  });
+  // Sync visibility after FormCollector.restoreCurrentStep() runs (called by renderStep)
+  setTimeout(function() {
+    var checked = document.querySelector('input[name="eduzahService"]:checked');
+    var detail = document.getElementById('eduzahServiceDetail');
+    if (detail && checked) detail.style.display = checked.value === 'yes' ? 'block' : 'none';
+  }, 0);
 }
 
 function r11() {
@@ -772,6 +833,14 @@ function collectFormData(fileUrls) {
     salesExp: g('salesExp'), salesComm: g('salesComm', '5'), salesScen: g('salesScen'), salesSalary: g('salesSalary'),
     designTools: arr('cbgroup_designToolsGroup'), designPort: g('designPort'), designYrs: g('designYrs'),
     designFields: arr('cbgroup_designFieldsGroup'), designProc: g('designProc'),
+    // Robotics Instructor
+    roboticsTools: arr('cbgroup_roboticsToolsGroup'), roboticsAreas: arr('cb_roboticsAreas'),
+    roboticsKids: g('roboticsKids'), roboticsQ: g('roboticsQ'), roboticsComp: g('roboticsComp'), roboticsPort: g('roboticsPort'),
+    // Project Management
+    pmPastProjects: g('pmPastProjects'), pmEdTech: g('pmEdTech'), pmRole: g('pmRole'),
+    pmMethodologies: arr('cb_pmMethodologies'), pmChallenge: g('pmChallenge'), pmPort: g('pmPort'),
+    // Universal Eduzah service question
+    eduzahService: g('eduzahService'), eduzahServiceType: g('eduzahServiceType'),
     // File names (always present)
     cvFile:      files.cvFile      ? files.cvFile.name      : '',
     photoFile:   files.photoFile   ? files.photoFile.name   : '',

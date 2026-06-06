@@ -97,8 +97,10 @@
           <option value="cybersecurity">Cybersecurity</option>
           <option value="data-analysis">Data Analysis</option>
           <option value="ai-instructor">AI Instructor</option>
+          <option value="robotics-instructor">Robotics Instructor</option>
           <option value="sales">Sales Rep</option>
           <option value="designer">Graphic Designer</option>
+          <option value="project-management">Project Manager</option>
         </select>
       </div>
       <div>
@@ -406,19 +408,22 @@ function sortBy(key) {
 
 // ── Render table ──────────────────────────────────────────────────────────────
 const POS_LABELS = {
-  'kids-coding':       'Coding Instructor',
-  'prog-fundamentals': 'Programming Fund.',
-  'english-instructor':'English Instructor',
-  'cybersecurity':     'Cybersecurity',
-  'data-analysis':     'Data Analysis',
-  'ai-instructor':     'AI Instructor',
-  'sales':             'Sales Rep',
-  'designer':          'Graphic Designer',
+  'kids-coding':         'Coding Instructor',
+  'prog-fundamentals':   'Programming Fund.',
+  'english-instructor':  'English Instructor',
+  'cybersecurity':       'Cybersecurity',
+  'data-analysis':       'Data Analysis',
+  'ai-instructor':       'AI Instructor',
+  'robotics-instructor': 'Robotics Instructor',
+  'sales':               'Sales Rep',
+  'designer':            'Graphic Designer',
+  'project-management':  'Project Manager',
 };
 const POS_TAG = {
   'kids-coding':'tag-kids','prog-fundamentals':'tag-prog','english-instructor':'tag-english',
   'cybersecurity':'tag-cyber','data-analysis':'tag-data','ai-instructor':'tag-ai',
-  'sales':'tag-sales','designer':'tag-designer',
+  'robotics-instructor':'tag-cyber','sales':'tag-sales','designer':'tag-designer',
+  'project-management':'tag-other',
 };
 
 function renderTable() {
@@ -528,7 +533,7 @@ function renderStats() {
   allData.forEach(r => { byPos[r.position] = (byPos[r.position]||0)+1; });
   const topPos = Object.entries(byPos).sort((a,b)=>b[1]-a[1])[0];
 
-  const teaching = ['kids-coding','prog-fundamentals','english-instructor','cybersecurity','data-analysis','ai-instructor'];
+  const teaching = ['kids-coding','prog-fundamentals','english-instructor','cybersecurity','data-analysis','ai-instructor','robotics-instructor'];
   const teachCount = allData.filter(r => teaching.includes(r.position)).length;
 
   const cards = [
@@ -555,14 +560,16 @@ function renderStats() {
 
 // ── Detail modal ──────────────────────────────────────────────────────────────
 const ROLE_SPECIFIC_FIELDS = {
-  'kids-coding':        [['Kids experience',r=>r.kidsExp],['Teaching exp',r=>r.kidsTeach],['How to explain',r=>r.kidsExplain],['Engagement approach',r=>r.kidsComm]],
-  'prog-fundamentals':  [['Comfortable with beginners',r=>r.beg],['Logical thinking explanation',r=>r.logicExp],['Teaching example',r=>r.exTeach]],
-  'english-instructor': [['Teaching mode',r=>r.engMode],['Teaching areas',r=>r.engAreas],['Teaching experience',r=>r.engTeachExp],['Lesson demo',r=>r.engLessonDemo],['Portfolio',r=>r.engPort]],
-  'cybersecurity':      [['Teaching mode',r=>r.cyberMode],['Topics',r=>r.cyberTopics],['Phishing explanation',r=>r.phishQ],['GitHub/Portfolio',r=>r.cyberGit]],
-  'data-analysis':      [['Tools',r=>r.dataTools],['Data question',r=>r.dataQ],['Portfolio',r=>r.dataPort]],
-  'ai-instructor':      [['Expertise areas',r=>r.aiExpertise],['Tools/Frameworks',r=>r.aiTools],['ML vs DL question',r=>r.mlQ],['GitHub',r=>r.aiGit]],
-  'sales':              [['Sales experience',r=>r.salesExp],['Communication skills',r=>r.salesComm?r.salesComm+'/10':''],['Scenario answer',r=>r.salesScen],['Expected salary',r=>r.salesSalary]],
-  'designer':           [['Design tools',r=>r.designTools],['Portfolio',r=>r.designPort],['Years of experience',r=>r.designYrs],['Design fields',r=>r.designFields],['Design process',r=>r.designProc]],
+  'kids-coding':         [['Kids experience',r=>r.kidsExp],['Teaching exp',r=>r.kidsTeach],['How to explain',r=>r.kidsExplain],['Engagement approach',r=>r.kidsComm]],
+  'prog-fundamentals':   [['Comfortable with beginners',r=>r.beg],['Logical thinking explanation',r=>r.logicExp],['Teaching example',r=>r.exTeach]],
+  'english-instructor':  [['Teaching mode',r=>r.engMode],['Teaching areas',r=>r.engAreas],['Teaching experience',r=>r.engTeachExp],['Lesson demo',r=>r.engLessonDemo],['Portfolio',r=>r.engPort]],
+  'cybersecurity':       [['Teaching mode',r=>r.cyberMode],['Topics',r=>r.cyberTopics],['Phishing explanation',r=>r.phishQ],['GitHub/Portfolio',r=>r.cyberGit]],
+  'data-analysis':       [['Tools',r=>r.dataTools],['Data question',r=>r.dataQ],['Portfolio',r=>r.dataPort]],
+  'ai-instructor':       [['Expertise areas',r=>r.aiExpertise],['Tools/Frameworks',r=>r.aiTools],['ML vs DL question',r=>r.mlQ],['GitHub',r=>r.aiGit]],
+  'robotics-instructor': [['Tools & Technologies',r=>r.roboticsTools],['Areas of expertise',r=>r.roboticsAreas],['Experience with students',r=>r.roboticsKids],['Circuit explanation',r=>r.roboticsQ],['Competition experience',r=>r.roboticsComp],['Portfolio/GitHub',r=>r.roboticsPort]],
+  'sales':               [['Sales experience',r=>r.salesExp],['Communication skills',r=>r.salesComm?r.salesComm+'/10':''],['Scenario answer',r=>r.salesScen],['Expected salary',r=>r.salesSalary]],
+  'designer':            [['Design tools',r=>r.designTools],['Portfolio',r=>r.designPort],['Years of experience',r=>r.designYrs],['Design fields',r=>r.designFields],['Design process',r=>r.designProc]],
+  'project-management':  [['Past projects',r=>r.pmPastProjects],['EdTech related?',r=>r.pmEdTech],['Role in projects',r=>r.pmRole],['Methodologies',r=>r.pmMethodologies],['Challenge response',r=>r.pmChallenge],['Portfolio',r=>r.pmPort]],
 };
 
 function fileCard(label, nameVal, urlVal) {
@@ -685,9 +692,11 @@ function showDetail(idx) {
       ['Session recording OK?', r.recorded],
     ]) +
     filesHtml +
-    section('Referral', [
+    section('Referral & Eduzah History', [
       ['How did you hear about us?', r.source],
       ['Referred by', r.referral],
+      ['Previously used Eduzah services?', r.eduzahService],
+      ['Service received', r.eduzahServiceType],
     ]) +
     section('Submission', [
       ['Submitted at', fmtDate(r.submittedAt || r.Date || '')],
@@ -735,6 +744,9 @@ function exportExcel() {
     'Laptop','Internet','Cam+Mic',
     'Video Link','CV File',
     'Why Eduzah','Why Fit','Handle Q','Recorded','Source','Referral',
+    'Used Eduzah Before?','Eduzah Service Type',
+    'Robotics Tools','Robotics Areas','Robotics Kids Exp','Robotics Q','Robotics Port',
+    'PM Past Projects','PM EdTech?','PM Role','PM Methodologies','PM Port',
   ];
 
   const rows = filteredData.map(r => [
@@ -754,6 +766,9 @@ function exportExcel() {
     r.videoLink || '', r.cvFile || '',
     r.whyEduzah || '', r.whyFit || '', r.handleQ || '', r.recorded || '',
     r.source || '', r.referral || '',
+    r.eduzahService || '', r.eduzahServiceType || '',
+    r.roboticsTools || '', r.roboticsAreas || '', r.roboticsKids || '', r.roboticsQ || '', r.roboticsPort || '',
+    r.pmPastProjects || '', r.pmEdTech || '', r.pmRole || '', r.pmMethodologies || '', r.pmPort || '',
   ]);
 
   const ws   = XLSX.utils.aoa_to_sheet([headers, ...rows]);
