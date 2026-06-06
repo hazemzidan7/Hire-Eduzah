@@ -7,6 +7,7 @@
 const ALLOWED_POSITIONS = [
   'kids-coding', 'prog-fundamentals', 'english-instructor',
   'cybersecurity', 'data-analysis', 'ai-instructor', 'sales', 'designer',
+  'robotics-instructor', 'project-management',
 ];
 
 /** Strip control chars and HTML tags, trim, enforce max length */
