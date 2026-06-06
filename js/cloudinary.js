@@ -36,8 +36,12 @@ window.CloudinaryUploader = (function () {
     return null;
   }
 
-  /** Validate file before upload — throws with user-friendly message */
-  async function validateFile(file, label) {
+  /** Validate file before upload — throws with user-friendly message
+   *  @param {File}     file
+   *  @param {string}   label         — human-readable field name for error messages
+   *  @param {string[]|null} allowedMimes — restrict to specific MIME types (null = any allowed)
+   */
+  async function validateFile(file, label, allowedMimes) {
     if (file.size > MAX_SIZE_BYTES) {
       throw new Error(`${label}: الحجم الأقصى هو 5 ميجابايت / Max size is 5 MB`);
     }
@@ -45,15 +49,22 @@ window.CloudinaryUploader = (function () {
     if (!detectedMime) {
       throw new Error(`${label}: نوع الملف غير مسموح (JPG, PNG, WEBP, PDF فقط) / Only JPG, PNG, WEBP, PDF allowed`);
     }
+    if (allowedMimes && !allowedMimes.includes(detectedMime)) {
+      const isPdfField = allowedMimes.includes('application/pdf');
+      throw new Error(isPdfField
+        ? `${label}: يُسمح بملفات PDF فقط / Only PDF files are allowed`
+        : `${label}: يُسمح بالصور فقط (JPG, PNG, WEBP) / Only images allowed (JPG, PNG, WEBP)`
+      );
+    }
     return detectedMime;
   }
 
   /** Upload a single validated file to Cloudinary */
-  async function uploadFile(file, label) {
+  async function uploadFile(file, label, allowedMimes) {
     var c = cfg();
     if (!c.cloudName || !c.uploadPreset) throw new Error('Cloudinary not configured');
 
-    await validateFile(file, label || file.name);
+    await validateFile(file, label || file.name, allowedMimes || null);
 
     var fd = new FormData();
     fd.append('file',           file);
@@ -70,13 +81,16 @@ window.CloudinaryUploader = (function () {
     return data.secure_url;
   }
 
+  const PDF_MIMES   = ['application/pdf'];
+  const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp'];
+
   /** Upload all form files — returns { cvFileUrl, photoFileUrl, ... } */
   async function uploadAll(onProgress) {
     var specs = [
-      { key: 'cvFile',      label: 'CV / Resume' },
-      { key: 'photoFile',   label: 'Profile photo' },
-      { key: 'natidFront',  label: 'National ID (front)' },
-      { key: 'natidBack',   label: 'National ID (back)' },
+      { key: 'cvFile',      label: 'CV / Resume',        allowedMimes: PDF_MIMES   },
+      { key: 'photoFile',   label: 'Profile photo',       allowedMimes: IMAGE_MIMES },
+      { key: 'natidFront',  label: 'National ID (front)', allowedMimes: IMAGE_MIMES },
+      { key: 'natidBack',   label: 'National ID (back)',  allowedMimes: IMAGE_MIMES },
     ];
     var urls = {};
     if (!isConfigured() || !window.FormStore) return urls;
@@ -88,7 +102,7 @@ window.CloudinaryUploader = (function () {
       if (!file) continue;
       if (onProgress) onProgress(spec.key, i + 1, specs.length);
       try {
-        urls[spec.key + 'Url'] = await uploadFile(file, spec.label);
+        urls[spec.key + 'Url'] = await uploadFile(file, spec.label, spec.allowedMimes);
       } catch (e) {
         console.warn('[Cloudinary] upload failed for', spec.key, e.message);
         // Surface validation errors to user
