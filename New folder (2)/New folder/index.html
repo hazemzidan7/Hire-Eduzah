@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" id="htmlRoot">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Eduzah — بوابة التوظيف</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+<!-- ══ SINGLE TOP NAVIGATION BAR ══════════════════════════ -->
+<nav class="topbar" id="topbar">
+  <div class="topbar-inner">
+    <!-- ONE logo — only place in the entire page -->
+    <div class="topbar-logo">
+      <span class="logo-mark">E</span>
+      <span class="logo-word">Edu<em>zah</em></span>
+    </div>
+    <div class="topbar-right">
+      <span class="topbar-tagline" id="topbarTagline">بوابة التوظيف</span>
+      <a href="admin.html" class="topbar-admin" id="adminLink">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+        <span id="adminLinkText">لوحة الإدارة</span>
+      </a>
+    </div>
+  </div>
+</nav>
+
+<!-- ══ HERO BAND (no duplicate logo here) ═════════════════ -->
+<section class="hero-band" id="heroBand">
+  <div class="hero-glow"></div>
+  <div class="hero-body">
+    <div class="hero-pill" id="heroPill">فرص مفتوحة · 2025</div>
+    <h1 class="hero-heading" id="heroHeading">
+      انضم إلى فريق <strong>Eduzah</strong>
+    </h1>
+    <p class="hero-desc" id="heroDesc">
+      نبحث عن المبدعين والشغوفين بالتعليم والتقنية<br/>
+      قدّم الآن وكن جزءاً من مستقبل التعليم الرقمي
+    </p>
+  </div>
+  <div class="hero-dots" aria-hidden="true">
+    <div class="hdot"></div><div class="hdot"></div><div class="hdot"></div>
+    <div class="hdot"></div><div class="hdot"></div><div class="hdot"></div>
+    <div class="hdot"></div><div class="hdot"></div><div class="hdot"></div>
+  </div>
+</section>
+
+<!-- ══ MAIN FORM AREA ═════════════════════════════════════ -->
+<main class="form-area">
+
+  <!-- Floating step progress pill -->
+  <div class="progress-pill" id="progressPill">
+    <div class="pp-track" id="ppTrack"></div>
+    <span class="pp-label" id="ppLabel">الخطوة 1 من 10</span>
+  </div>
+
+  <!-- The card that holds each step -->
+  <div class="form-card" id="formCard">
+    <div class="step-anim" id="stepContent"></div>
+  </div>
+
+  <!-- Sticky bottom nav -->
+  <div class="sticky-nav" id="stickyNav">
+    <div class="sn-inner" id="snInner">
+      <!-- injected by JS -->
+    </div>
+  </div>
+
+</main>
+
+<script src="form.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

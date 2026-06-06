@@ -465,19 +465,9 @@ function renderProgress() {
 function bindFileInputListeners() {
   document.querySelectorAll('#stepContent input[type=file][id]').forEach(inp => {
     inp.addEventListener('change', function () {
-      const file = this.files && this.files[0];
-      if (!file) return;
-      if (window.FormStore) FormStore.setFile(this.id, file);
-      const box = this.closest('.upload-box');
-      if (!box) return;
-      box.classList.remove('invalid');
-      box.classList.add('file-selected');
-      const p = box.querySelector('p');
-      if (p) p.textContent = '✓ ' + file.name;
-      const small = box.querySelector('small');
-      if (small) small.textContent = (file.size / 1024).toFixed(0) + ' KB';
-      const errEl = document.getElementById(this.id + '_err');
-      if (errEl) errEl.classList.remove('show');
+      if (this.files && this.files[0] && window.FormStore) {
+        FormStore.setFile(this.id, this.files[0]);
+      }
     });
   });
 }
@@ -731,132 +721,17 @@ function goBack() {
   if (S.step > 0) { S.step--; renderStep(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 }
 
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwjuOQlKC9wQWt5_3i0xzlAKiAriqVv4YfcjEz3-BZh-lgeR9ukX-XsN8mn3CLdirGaWw/exec';
-
-function collectFormData(fileUrls) {
-  // submitForm already snapshotted — no need to repeat
-  const d = window.FormStore ? FormStore.getAll() : {};
-  const files = window.FormStore ? FormStore.getAllFiles() : {};
-  const fu = fileUrls || {};
-  const g = (k, def) => (k in d) ? d[k] : (def !== undefined ? def : '');
-  const arr = k => Array.isArray(d[k]) ? d[k].join(', ') : '';
-
-  return {
-    position: S.role || g('position'),
-    nameAr: g('nameAr'), nameEn: g('nameEn'),
-    email: g('email'), phone: g('phone'),
-    natid: g('natid'), gender: g('gender'),
-    dob: g('dob'), gov: g('gov'),
-    sohagCenter: g('sohagCenter'), city: g('city'),
-    uni: g('uni'), faculty: g('faculty'),
-    major: g('major'), gradYear: g('gradYear'),
-    status: g('status'),
-    engLevel: g('engLevel'),
-    rateTeach: g('rateTeach', '5'), rateTech: g('rateTech', '5'), rateComm: g('rateComm', '5'),
-    laptop: g('laptop'), internet: g('internet'), camMic: g('camMic'),
-    workMode: g('workMode'), workType: g('workType'),
-    availDays: arr('cb_availDays'),
-    shift: g('shift'), startDate: g('startDate'),
-    videoLink: g('videoLink'),
-    whyEduzah: g('whyEduzah'), whyFit: g('whyFit'),
-    handleQ: g('handleQ'), recorded: g('recorded'),
-    source: g('source'), referral: g('referral'),
-    kidsExp: g('kidsExp'), kidsTeach: g('kidsTeach'), kidsExplain: g('kidsExplain'), kidsComm: g('kidsComm'),
-    beg: g('beg'), logicExp: g('logicExp'), exTeach: g('exTeach'),
-    engMode: g('engMode'), engTeachExp: g('engTeachExp'), engLessonDemo: g('engLessonDemo'), engPort: g('engPort'),
-    engAreas: arr('cb_engAreas'),
-    cyberMode: g('cyberMode'), phishQ: g('phishQ'), cyberGit: g('cyberGit'),
-    cyberTopics: arr('cb_cyberTopics'),
-    dataTools: arr('cb_dataTools'), dataQ: g('dataQ'), dataPort: g('dataPort'),
-    aiExpertise: arr('cb_aiExpertise'), aiTools: arr('cb_aiTools'), mlQ: g('mlQ'), aiGit: g('aiGit'),
-    salesExp: g('salesExp'), salesComm: g('salesComm', '5'), salesScen: g('salesScen'), salesSalary: g('salesSalary'),
-    designTools: arr('cbgroup_designToolsGroup'), designPort: g('designPort'), designYrs: g('designYrs'),
-    designFields: arr('cbgroup_designFieldsGroup'), designProc: g('designProc'),
-    // File names (always present)
-    cvFile:      files.cvFile      ? files.cvFile.name      : '',
-    photoFile:   files.photoFile   ? files.photoFile.name   : '',
-    natidFront:  files.natidFront  ? files.natidFront.name  : '',
-    natidBack:   files.natidBack   ? files.natidBack.name   : '',
-    // Cloudinary URLs (populated if upload succeeded)
-    cvFileUrl:      fu.cvFileUrl      || '',
-    photoFileUrl:   fu.photoFileUrl   || '',
-    natidFrontUrl:  fu.natidFrontUrl  || '',
-    natidBackUrl:   fu.natidBackUrl   || '',
-    submittedAt: new Date().toISOString(),
-  };
-}
-
-function showSuccessScreen() {
-  document.getElementById('progressBar').style.display = 'none';
-  document.getElementById('stepContent').innerHTML = `
-    <div style="text-align:center;padding:40px 20px">
-      <div style="font-size:64px;margin-bottom:16px">✅</div>
-      <h2 style="color:#1a3c5e;margin-bottom:12px">${tr('تم إرسال طلبك بنجاح!', 'Application submitted successfully!')}</h2>
-      <p style="color:#6b7280;font-size:15px;max-width:400px;margin:0 auto">${tr(
-        'شكراً لتقديمك! سيتواصل معك فريق Eduzah خلال أيام عمل.',
-        'Thank you for applying! The Eduzah team will contact you within a few business days.'
-      )}</p>
-    </div>`;
-}
-
-function _setOverlay(visible, msg) {
-  const ov = document.getElementById('submitOverlay');
-  const tx = document.getElementById('submitOverlayMsg');
-  if (!ov) return;
-  if (tx && msg) tx.textContent = msg;
-  ov.classList.toggle('is-active', visible);
-  ov.setAttribute('aria-hidden', String(!visible));
-}
-
 async function submitForm() {
   if (window.SubmissionService && SubmissionService.isSubmitting()) return;
   if (window.FormCollector) FormCollector.snapshotCurrentStep();
-  if (window.SubmissionService) { await SubmissionService.submit(S); return; }
-
-  const agree = $('agree');
-  if (!agree || !agree.checked) {
-    setFieldError('agree', tr('يرجى تأكيد الإقرار قبل إرسال الطلب', 'Please confirm the agreement before submitting'));
-    showStepError(tr('يرجى تأكيد الإقرار قبل إرسال الطلب', 'Please confirm the agreement before submitting'));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (window.SubmissionService) {
+    await SubmissionService.submit(S);
     return;
   }
-
-  _setOverlay(true, tr('جاري الإرسال...', 'Submitting your application…'));
-
-  try {
-    // Step 1: upload files to Cloudinary (if configured)
-    let fileUrls = {};
-    if (window.CloudinaryUploader && CloudinaryUploader.isConfigured()) {
-      _setOverlay(true, tr('جاري رفع الملفات...', 'Uploading files…'));
-      fileUrls = await CloudinaryUploader.uploadAll((key, i, total) => {
-        _setOverlay(true, tr(`رفع ملف ${i} من ${total}...`, `Uploading file ${i} of ${total}…`));
-      });
-    }
-
-    // Step 2: collect all form data (with file URLs)
-    _setOverlay(true, tr('جاري الإرسال...', 'Sending application…'));
-    const data = collectFormData(fileUrls);
-
-    // Step 3: save via secure server-side endpoint (no DB keys in client)
-    // Include honeypot field value (should be empty for real users)
-    const honeypot = document.getElementById('_hp');
-    if (honeypot) data._hp = honeypot.value;
-
-    const submitRes = await fetch('/api/submit', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(data),
-    });
-    if (!submitRes.ok) {
-      const err = await submitRes.json().catch(() => ({}));
-      throw new Error(err.error || 'Submission failed');
-    }
-
-    _setOverlay(false);
-    showSuccessScreen();
-  } catch (e) {
-    _setOverlay(false);
-    showStepError(tr('حدث خطأ أثناء الإرسال، يرجى المحاولة مرة أخرى', 'An error occurred, please try again'));
+  const agree = $('agree');
+  if (!agree || !agree.checked) {
+    const msg = tr('يرجى تأكيد الإقرار قبل إرسال الطلب', 'Please confirm the agreement before submitting');
+    showStepError(msg);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 }

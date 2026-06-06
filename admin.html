@@ -203,62 +203,108 @@ let sortKey      = 'submittedAt';
 let sortAsc      = false;
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
+let _loginAttempts = 0;
+const _MAX_CLIENT_ATTEMPTS = 5;
+
 async function doLogin() {
   const pwd = document.getElementById('adminPwd').value.trim();
   if (!pwd) return;
 
+  // Client-side lockout display (real lockout enforced server-side)
+  if (_loginAttempts >= _MAX_CLIENT_ATTEMPTS) {
+    document.getElementById('loginErr').textContent = 'Too many attempts. Please wait.';
+    document.getElementById('loginErr').classList.remove('hidden');
+    return;
+  }
+
   const btn = document.querySelector('#loginScreen button');
   if (btn) { btn.disabled = true; btn.textContent = 'Signing in…'; }
+  document.getElementById('loginErr').classList.add('hidden');
 
   try {
-    // Validate password server-side
-    const res = await fetch('/api/admin', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ password: pwd }),
+    // POST to /api/login — server validates password and sets HttpOnly cookie
+    const res = await fetch('/api/login', {
+      method:      'POST',
+      headers:     { 'Content-Type': 'application/json' },
+      credentials: 'same-origin', // ensure cookies are sent/received
+      body:        JSON.stringify({ password: pwd }),
     });
 
+    if (res.status === 429) {
+      document.getElementById('loginErr').textContent = 'Account locked. Try again in 30 minutes.';
+      document.getElementById('loginErr').classList.remove('hidden');
+      return;
+    }
     if (res.status === 401) {
+      _loginAttempts++;
+      const remaining = _MAX_CLIENT_ATTEMPTS - _loginAttempts;
+      document.getElementById('loginErr').textContent =
+        remaining > 0 ? `Incorrect password. ${remaining} attempt(s) remaining.` : 'Too many attempts.';
       document.getElementById('loginErr').classList.remove('hidden');
       document.getElementById('adminPwd').classList.add('border-red-400');
+      document.getElementById('adminPwd').value = '';
       return;
     }
     if (!res.ok) throw new Error('Server error ' + res.status);
 
-    // Password correct — store for subsequent data requests
-    sessionStorage.setItem('eduzah_admin', '1');
-    sessionStorage.setItem('eduzah_pwd', pwd);
-
-    const rows = await res.json();
-    showDashboard(rows);
+    // Cookie set by server — fetch dashboard data
+    showDashboard();
+    startInactivityTimer();
   } catch (err) {
-    document.getElementById('loginErr').textContent = 'Error: ' + err.message;
+    document.getElementById('loginErr').textContent = 'Connection error. Try again.';
     document.getElementById('loginErr').classList.remove('hidden');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Sign In'; }
   }
 }
 
-function logout() {
-  sessionStorage.removeItem('eduzah_admin');
+// ── Session auto-timeout (30 min inactivity) ──────────────────────────────────
+let _inactivityTimer;
+const _SESSION_TIMEOUT = 30 * 60 * 1000;
+
+function resetInactivityTimer() {
+  clearTimeout(_inactivityTimer);
+  _inactivityTimer = setTimeout(() => {
+    logout();
+    alert('Session expired due to inactivity. Please sign in again.');
+  }, _SESSION_TIMEOUT);
+}
+
+function startInactivityTimer() {
+  ['mousemove','keydown','click','scroll'].forEach(ev =>
+    document.addEventListener(ev, resetInactivityTimer, { passive: true })
+  );
+  resetInactivityTimer();
+}
+
+async function logout() {
+  clearTimeout(_inactivityTimer);
+  try { await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' }); } catch {}
   location.reload();
 }
 
-function checkAuth() {
-  // Can't restore session without re-validating password server-side
-  // User must log in again each session (sessionStorage clears on tab close)
-  sessionStorage.removeItem('eduzah_admin');
-  sessionStorage.removeItem('eduzah_pwd');
+async function checkAuth() {
+  // Try loading data — if cookie is valid the server returns data, else 401
+  setLoading(true);
+  try {
+    const res = await fetch('/api/admin', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin', body: '{}',
+    });
+    if (res.ok) {
+      const rows = await res.json();
+      showDashboard();
+      processRows(rows);
+      startInactivityTimer();
+    }
+    // 401 = no valid cookie → stay on login screen (normal)
+  } catch { /* network error — stay on login */ }
+  finally { setLoading(false); }
 }
 
-function showDashboard(preloadedRows) {
+function showDashboard() {
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('dashboard').classList.remove('hidden');
-  if (preloadedRows) {
-    processRows(preloadedRows);
-  } else {
-    loadData();
-  }
 }
 
 // ── Data ──────────────────────────────────────────────────────────────────────
@@ -290,16 +336,15 @@ function processRows(rows) {
 async function loadData() {
   setLoading(true);
   try {
-    const pwd = sessionStorage.getItem('eduzah_pwd');
-    if (!pwd) { logout(); return; }
-
+    // Cookie (HttpOnly) is sent automatically — no token in JS
     const res = await fetch('/api/admin', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ password: pwd }),
+      method:      'POST',
+      headers:     { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body:        '{}',
     });
 
-    if (res.status === 401) { logout(); return; }
+    if (res.status === 401) { await logout(); return; }
     if (!res.ok) throw new Error('Server error ' + res.status);
 
     const rows = await res.json();

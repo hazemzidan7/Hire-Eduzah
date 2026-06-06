@@ -1,42 +1,36 @@
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+'use strict';
+/**
+ * POST /api/admin
+ * Returns all applicant data — requires valid JWT in HttpOnly cookie.
+ *
+ * Security:
+ * - JWT validation (HMAC-SHA256, timing-safe comparison)
+ * - Token from HttpOnly cookie (never accessible from JS)
+ * - Service role key never leaves server
+ * - Generic error messages (no internals exposed)
+ */
+const { verifyToken, tokenFromRequest } = require('./_lib/auth');
+const { dbSelect }                      = require('./_lib/db');
+
+module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== 'POST')   return res.status(405).json({ error: 'Method not allowed' });
 
-  const { password } = req.body || {};
-
-  if (!password || password !== process.env.ADMIN_PASSWORD) {
+  // ── 1. Extract and verify JWT from cookie ─────────────────────────────────
+  const token = tokenFromRequest(req);
+  try {
+    const payload = verifyToken(token);
+    if (payload.role !== 'admin') throw new Error('Insufficient permissions');
+  } catch (err) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const SUPABASE_URL = process.env.SUPABASE_URL;
-  const SERVICE_KEY  = process.env.SUPABASE_SERVICE_KEY;
-
-  if (!SUPABASE_URL || !SERVICE_KEY) {
-    return res.status(500).json({ error: 'Server not configured' });
-  }
-
+  // ── 2. Fetch data using service role key (server-side only) ───────────────
   try {
-    const r = await fetch(
-      `${SUPABASE_URL}/rest/v1/applications?select=*&order=submitted_at.desc`,
-      {
-        headers: {
-          'apikey':        SERVICE_KEY,
-          'Authorization': `Bearer ${SERVICE_KEY}`,
-        },
-      }
-    );
-
-    if (!r.ok) {
-      const err = await r.text();
-      return res.status(500).json({ error: 'DB error: ' + err });
-    }
-
-    const data = await r.json();
-    res.status(200).json(data);
+    const rows = await dbSelect('applications', 'order=submitted_at.desc');
+    return res.status(200).json(rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('[admin] DB error:', err.message);
+    return res.status(500).json({ error: 'Failed to load data' });
   }
-}
+};
