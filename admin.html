@@ -575,8 +575,8 @@ const ROLE_SPECIFIC_FIELDS = {
 function fileCard(label, nameVal, urlVal) {
   const name = nameVal || '';
   const url  = urlVal  || '';
-  const isImg = /\.(jpg|jpeg|png|gif|webp|heic)/i.test(url) || /image/i.test(url);
-  const isPdf = /\.pdf/i.test(url) || /pdf/i.test(url);
+  const isPdf = /\.pdf(\?|$)/i.test(url) || /\.pdf(\?|$)/i.test(name);
+  const isImg = !isPdf && (/\.(jpg|jpeg|png|gif|webp|heic)(\?|$)/i.test(url) || (/image/i.test(url) && /\.(jpg|jpeg|png|gif|webp|heic)/i.test(name)));
 
   if (!url && !name) return '';
 
