@@ -1,12 +1,10 @@
 'use strict';
 /**
  * GET /api/get-file-url?url=<cloudinary-url>
- * Proxies a Cloudinary file through our server so the admin browser
- * never hits Cloudinary directly (avoids 401 on private/restricted assets).
- * Requires a valid admin JWT cookie — no expiry from the browser's perspective.
+ * Proxies a Cloudinary file through our server.
+ * Tries multiple strategies to bypass 401/Strict-Transformations.
  */
 const crypto = require('crypto');
-const https  = require('https');
 const { verifyToken, tokenFromRequest } = require('./_lib/auth');
 const { isCloudinary } = require('./_lib/validate');
 
@@ -22,6 +20,8 @@ module.exports = async function handler(req, res) {
   }
 
   const rawUrl = req.query && req.query.url;
+  console.log('[get-file-url] rawUrl:', rawUrl && rawUrl.slice(0, 120));
+
   if (!rawUrl || !isCloudinary(rawUrl)) {
     return res.status(400).send('Invalid URL');
   }
@@ -30,58 +30,63 @@ module.exports = async function handler(req, res) {
   const apiSecret = process.env.CLOUDINARY_API_SECRET;
   const apiKey    = process.env.CLOUDINARY_API_KEY;
 
-  if (!apiSecret || !apiKey) {
-    // No credentials — try serving directly and hope it's public
-    return res.redirect(302, rawUrl);
+  // Strategy 1: signed URL (bypasses strict-transformations + restricted-originals)
+  if (apiSecret) {
+    const signedUrl = buildSignedUrl(rawUrl, cloudName, apiSecret);
+    console.log('[get-file-url] trying signed URL:', signedUrl.slice(0, 120));
+    const ok = await tryFetch(signedUrl, res);
+    if (ok) return;
+    console.warn('[get-file-url] signed URL failed, trying fl_attachment…');
   }
 
-  // ── Build signed Cloudinary URL (server-side only, never exposed to client) ─
-  let fetchUrl;
-  try {
-    fetchUrl = buildSignedUrl(rawUrl, cloudName, apiSecret);
-  } catch (e) {
-    console.error('[get-file-url] sign error:', e.message);
-    fetchUrl = rawUrl; // fallback to unsigned
-  }
+  // Strategy 2: add fl_attachment transformation (often bypasses restricted-originals without signing)
+  const transformedUrl = insertTransform(rawUrl, 'fl_attachment');
+  console.log('[get-file-url] trying fl_attachment URL:', transformedUrl.slice(0, 120));
+  const ok2 = await tryFetch(transformedUrl, res);
+  if (ok2) return;
+  console.warn('[get-file-url] fl_attachment failed, falling back to raw redirect…');
 
-  // ── Proxy the file bytes to the browser ──────────────────────────────────
-  try {
-    await pipe(fetchUrl, res);
-  } catch (e) {
-    console.error('[get-file-url] proxy error:', e.message);
-    res.status(502).send('Could not fetch file from Cloudinary.');
-  }
+  // Strategy 3: direct redirect — let browser handle it (may result in 401 in browser)
+  res.redirect(302, rawUrl);
 };
 
-/** Stream a remote URL to the response */
-function pipe(url, res) {
-  return new Promise((resolve, reject) => {
-    https.get(url, (upstream) => {
-      if (upstream.statusCode >= 400) {
-        upstream.resume();
-        return reject(new Error(`Cloudinary returned ${upstream.statusCode}`));
-      }
-      const ct = upstream.headers['content-type'] || 'application/octet-stream';
-      const cl = upstream.headers['content-length'];
-      res.setHeader('Content-Type', ct);
-      res.setHeader('Content-Disposition', 'inline');
-      res.setHeader('Cache-Control', 'private, no-store');
-      if (cl) res.setHeader('Content-Length', cl);
-      upstream.pipe(res);
-      upstream.on('end', resolve);
-      upstream.on('error', reject);
-    }).on('error', reject);
-  });
+/** Attempt to proxy a URL; returns true if succeeded, false if 4xx/5xx */
+async function tryFetch(url, res) {
+  try {
+    const upstream = await fetch(url, { redirect: 'follow' });
+    console.log('[get-file-url] response status:', upstream.status, 'for', url.slice(0, 80));
+
+    if (!upstream.ok) return false;
+
+    const ct = upstream.headers.get('content-type') || 'application/octet-stream';
+    const cl = upstream.headers.get('content-length');
+    res.setHeader('Content-Type', ct);
+    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('Cache-Control', 'private, no-store');
+    if (cl) res.setHeader('Content-Length', cl);
+
+    const buf = await upstream.arrayBuffer();
+    res.end(Buffer.from(buf));
+    return true;
+  } catch (e) {
+    console.error('[get-file-url] fetch error:', e.message);
+    return false;
+  }
+}
+
+/** Insert a Cloudinary transformation into the URL path (after /upload/) */
+function insertTransform(rawUrl, transform) {
+  return rawUrl.replace(/\/upload\//, `/upload/${transform}/`);
 }
 
 /**
- * Generate a Cloudinary signed URL.
+ * Build a Cloudinary signed URL.
  * Signature: SHA-1( "expire={ts}&public_id={id}" + apiSecret ) → base64url[:8]
  */
 function buildSignedUrl(rawUrl, cloudName, apiSecret) {
   const segs = new URL(rawUrl).pathname.split('/').filter(Boolean);
   const ui   = segs.indexOf('upload');
-  if (ui === -1) throw new Error('Not a Cloudinary upload URL');
+  if (ui === -1) return rawUrl;
 
   const resourceType = segs[ui - 1];
   let rest = segs.slice(ui + 1);
@@ -95,8 +100,7 @@ function buildSignedUrl(rawUrl, cloudName, apiSecret) {
   const publicId = dot !== -1 ? fullId.slice(0, dot) : fullId;
   const ext      = dot !== -1 ? fullId.slice(dot)    : '';
 
-  // Fresh signature each request — no fixed expiry from the user's perspective
-  const expire = Math.floor(Date.now() / 1000) + 300; // 5-min fetch window is enough
+  const expire = Math.floor(Date.now() / 1000) + 300;
   const toSign = `expire=${expire}&public_id=${publicId}`;
   const sig    = crypto.createHash('sha1')
     .update(toSign + apiSecret)
