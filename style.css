@@ -71,6 +71,34 @@ body.lang-en textarea {
   margin-bottom: 2rem;
 }
 
+.header-top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.lang-toggle {
+  position: absolute;
+  right: 0;
+  background: transparent;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--t-fast);
+  font-family: inherit;
+}
+.lang-toggle:hover {
+  border-color: var(--brand-purple);
+  color: var(--brand-purple);
+  background: rgba(109,40,217,.05);
+}
+[dir="rtl"] .lang-toggle { right: auto; left: 0; }
+
 .header-brand {
   min-height: 60px;
   display: flex;

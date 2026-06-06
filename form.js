@@ -13,29 +13,28 @@ const VIDEO_HINTS = {
   'project-management': { ar: 'سجّل فيديو قصير تشرح فيه كيف تدير مشروعاً تعليمياً أو تدريبياً من البداية للنهاية', en: 'Record a short video explaining how you manage an educational or training project from start to finish' },
 };
 const ROLE_GROUPS = {
-  'Kids Track': { ar: 'مسار الأطفال', en: 'Kids Track' },
-  'Adult Track': { ar: 'مسار الكبار', en: 'Adult Track' },
-  'Technical Roles': { ar: 'الأدوار التقنية', en: 'Technical Roles' },
-  'Language Programs': { ar: 'برامج اللغات', en: 'Language Programs' },
-  'Non-Teaching': { ar: 'غير تعليمي', en: 'Non-Teaching' },
+  'Kids Track':        { ar: 'مسار الأطفال',  en: 'Kids Track' },
+  'Programming Track': { ar: 'مسار البرمجة',  en: 'Programming Track' },
+  'Language Programs': { ar: 'برامج اللغات',  en: 'Language Programs' },
+  'Non-Teaching':      { ar: 'غير تعليمي',    en: 'Non-Teaching' },
 };
 const ROLES = [
-  { id: 'kids-coding', name: 'Coding Instructor', track: { ar: 'أطفال / برنامج صيفي', en: 'Kids / Summer Program' }, group: 'Kids Track' },
-  { id: 'prog-fundamentals', name: 'Programming Fundamentals Instructor', track: { ar: 'مسار الكبار', en: 'Adult Track' }, group: 'Adult Track' },
-  { id: 'english-instructor', name: 'English Instructor', track: { ar: 'أونلاين / أوفلاين', en: 'Online / Offline' }, group: 'Language Programs' },
-  { id: 'cybersecurity', name: 'Cybersecurity Instructor', track: { ar: 'أونلاين / أوفلاين', en: 'Online / Offline' }, group: 'Technical Roles' },
-  { id: 'data-analysis', name: 'Data Analysis Instructor', track: { ar: 'حضوري فقط', en: 'Offline only' }, group: 'Technical Roles' },
-  { id: 'ai-instructor', name: 'AI Instructor', track: { ar: 'حضوري فقط', en: 'Offline only' }, group: 'Technical Roles' },
-  { id: 'robotics-instructor', name: 'Robotics Instructor', track: { ar: 'STEM / روبوتكس', en: 'STEM / Robotics' }, group: 'Technical Roles' },
-  { id: 'sales', name: 'Sales Representative', track: { ar: 'غير تعليمي', en: 'Non-Teaching' }, group: 'Non-Teaching' },
-  { id: 'designer', name: 'Graphic Designer', track: { ar: 'غير تعليمي', en: 'Non-Teaching' }, group: 'Non-Teaching' },
-  { id: 'project-management', name: 'Project Manager', track: { ar: 'تعليم وتكنولوجيا تعليمية', en: 'Education & EdTech' }, group: 'Non-Teaching' },
+  { id: 'kids-coding',        name: 'Coding Instructor',                   track: { ar: 'أطفال / برنامج صيفي',           en: 'Kids / Summer Program' },  group: 'Kids Track' },
+  { id: 'prog-fundamentals',  name: 'Programming Fundamentals Instructor', track: { ar: 'مسار الكبار',                   en: 'Adult Track' },            group: 'Programming Track' },
+  { id: 'cybersecurity',      name: 'Cybersecurity Instructor',            track: { ar: 'أونلاين / أوفلاين',             en: 'Online / Offline' },       group: 'Programming Track' },
+  { id: 'data-analysis',      name: 'Data Analysis Instructor',            track: { ar: 'حضوري فقط',                     en: 'Offline only' },           group: 'Programming Track' },
+  { id: 'ai-instructor',      name: 'AI Instructor',                       track: { ar: 'حضوري فقط',                     en: 'Offline only' },           group: 'Programming Track' },
+  { id: 'robotics-instructor',name: 'Robotics Instructor',                 track: { ar: 'STEM / روبوتكس',                en: 'STEM / Robotics' },        group: 'Programming Track' },
+  { id: 'english-instructor', name: 'English Instructor',                  track: { ar: 'أونلاين / أوفلاين',             en: 'Online / Offline' },       group: 'Language Programs' },
+  { id: 'sales',              name: 'Sales Representative',                track: { ar: 'غير تعليمي',                    en: 'Non-Teaching' },           group: 'Non-Teaching' },
+  { id: 'designer',           name: 'Graphic Designer',                    track: { ar: 'غير تعليمي',                    en: 'Non-Teaching' },           group: 'Non-Teaching' },
+  { id: 'project-management', name: 'Project Manager',                     track: { ar: 'تعليم وتكنولوجيا تعليمية',      en: 'Education & EdTech' },     group: 'Non-Teaching' },
 ];
 const GOV = ['Alexandria', 'Aswan', 'Asyut', 'Beheira', 'Beni Suef', 'Cairo', 'Dakahlia', 'Damietta', 'Faiyum', 'Gharbia', 'Giza', 'Ismailia', 'Kafr El Sheikh', 'Luxor', 'Matruh', 'Minya', 'Monufia', 'New Valley', 'North Sinai', 'Port Said', 'Qalyubia', 'Qena', 'Red Sea', 'Sharqia', 'Sohag', 'South Sinai', 'Suez'];
 const SOHAG = ['Akhmim', 'El Balyana', 'Dar El Salam', 'Girga', 'Juhaynah', 'El Mansha', 'El Maragha', 'Saqultah', 'Sohag', 'Tahta', 'Tama'];
 const ALLOW_MANUAL_DOB_EDIT = false;
 
-let S = { step: 0, role: null, stepList: [] };
+let S = { step: 0, role: null, stepList: [], lang: 'en' };
 let natIdAutofillBound = false;
 
 /** Exposed for submission modules */
@@ -46,7 +45,7 @@ if (typeof window !== 'undefined') {
   window.S = S;
 }
 
-function isEn() { return S.role === 'english-instructor'; }
+function isEn() { return S.lang === 'en'; }
 function tr(ar, en) { return isEn() ? en : ar; }
 function trackLabel(r) { return isEn() ? r.track.en : r.track.ar; }
 function groupLabel(g) { return ROLE_GROUPS[g] ? (isEn() ? ROLE_GROUPS[g].en : ROLE_GROUPS[g].ar) : g; }
@@ -80,6 +79,16 @@ function applyDocumentLocale() {
   document.title = tr('Eduzah — نموذج التوظيف', 'Eduzah — Hiring Form');
   const bar = document.getElementById('progressBar');
   if (bar) bar.setAttribute('aria-label', tr('التقدم في النموذج', 'Form progress'));
+  // Update language toggle button label
+  const btn = document.getElementById('langToggle');
+  if (btn) btn.textContent = en ? 'عربي' : 'English';
+}
+
+function toggleLang() {
+  if (window.FormCollector) FormCollector.snapshotCurrentStep();
+  S.lang = S.lang === 'en' ? 'ar' : 'en';
+  if (window.FormStore) FormStore.set('_lang', S.lang);
+  renderStep();
 }
 
 function buildSteps(r) {
@@ -342,14 +351,16 @@ function validateCurrentStep() {
 
   if (step === 3) {
     const docs = [
-      ['cvFile', tr('السيرة الذاتية', 'CV'), tr('PDF فقط', 'PDF only')],
-      ['photoFile', tr('الصورة الشخصية', 'Profile photo'), tr('JPG أو PNG', 'JPG or PNG')],
-      ['natidFront', tr('الرقم القومي (أمام)', 'National ID (front)'), tr('JPG أو PNG', 'JPG or PNG')],
-      ['natidBack', tr('الرقم القومي (خلف)', 'National ID (back)'), tr('JPG أو PNG', 'JPG or PNG')],
+      ['cvFile',    tr('السيرة الذاتية', 'CV')],
+      ['photoFile', tr('الصورة الشخصية', 'Profile photo')],
+      ['natidFront',tr('الرقم القومي (أمام)', 'National ID (front)')],
+      ['natidBack', tr('الرقم القومي (خلف)', 'National ID (back)')],
     ];
     docs.forEach(([id, lbl]) => {
-      const inp = $(id);
-      if (!inp || !inp.files || !inp.files.length) {
+      const inp  = $(id);
+      const stored = window.FormStore ? FormStore.getFile(id) : null;
+      const hasFile = (inp && inp.files && inp.files.length > 0) || !!stored;
+      if (!hasFile) {
         const box = inp && inp.closest('.upload-box');
         if (box) box.classList.add('invalid');
         const errEl = $(id + '_err');
@@ -476,20 +487,64 @@ function renderProgress() {
 }
 
 function bindFileInputListeners() {
+  const PDF_FIELDS   = new Set(['cvFile']);
+  const IMAGE_FIELDS = new Set(['photoFile', 'natidFront', 'natidBack']);
+
+  function isPdfMagic(b) {
+    return b[0]===0x25 && b[1]===0x50 && b[2]===0x44 && b[3]===0x46;
+  }
+  function isImageMagic(b) {
+    return (b[0]===0xFF && b[1]===0xD8 && b[2]===0xFF) ||
+           (b[0]===0x89 && b[1]===0x50 && b[2]===0x4E && b[3]===0x47) ||
+           (b[0]===0x52 && b[1]===0x49 && b[2]===0x46 && b[3]===0x46 &&
+            b[8]===0x57 && b[9]===0x45 && b[10]===0x42 && b[11]===0x50);
+  }
+
   document.querySelectorAll('#stepContent input[type=file][id]').forEach(inp => {
-    inp.addEventListener('change', function () {
-      const file = this.files && this.files[0];
+    inp.addEventListener('change', async function () {
+      const file  = this.files && this.files[0];
       if (!file) return;
-      if (window.FormStore) FormStore.setFile(this.id, file);
-      const box = this.closest('.upload-box');
-      if (!box) return;
-      box.classList.remove('invalid');
-      box.classList.add('file-selected');
-      const p = box.querySelector('p');
+      const id    = this.id;
+      const box   = this.closest('.upload-box');
+      const errEl = document.getElementById(id + '_err');
+
+      const needsPdf   = PDF_FIELDS.has(id);
+      const needsImage = IMAGE_FIELDS.has(id);
+
+      if (needsPdf || needsImage) {
+        try {
+          const buf   = await file.slice(0, 12).arrayBuffer();
+          const bytes = new Uint8Array(buf);
+          const valid = needsPdf ? isPdfMagic(bytes) : isImageMagic(bytes);
+
+          if (!valid) {
+            this.value = '';
+            if (window.FormStore) FormStore.setFile(id, null);
+            if (box) { box.classList.add('invalid'); box.classList.remove('file-selected'); }
+            const hint = (box && box.dataset.hint) || (needsPdf ? tr('PDF فقط', 'PDF only') : tr('JPG، PNG، WEBP فقط', 'JPG, PNG, WEBP only'));
+            if (box) {
+              const p = box.querySelector('p');
+              const small = box.querySelector('small');
+              if (p) p.textContent = inp.getAttribute('aria-label') || id;
+              if (small) small.textContent = hint;
+            }
+            const msg = needsPdf
+              ? tr('نوع الملف غير صحيح — يُسمح بملفات PDF فقط', 'Wrong file type — only PDF files are allowed')
+              : tr('نوع الملف غير صحيح — يُسمح بـ JPG، PNG، WEBP فقط', 'Wrong file type — only JPG, PNG, WEBP images are allowed');
+            if (errEl) { errEl.textContent = msg; errEl.classList.add('show'); }
+            return;
+          }
+        } catch (e) {
+          console.warn('[FileValidation]', e);
+        }
+      }
+
+      if (window.FormStore) FormStore.setFile(id, file);
+      if (box) { box.classList.remove('invalid'); box.classList.add('file-selected'); }
+      const p = box && box.querySelector('p');
       if (p) p.textContent = '✓ ' + file.name;
-      const small = box.querySelector('small');
+      const small = box && box.querySelector('small');
       if (small) small.textContent = (file.size / 1024).toFixed(0) + ' KB';
-      const errEl = document.getElementById(this.id + '_err');
       if (errEl) errEl.classList.remove('show');
     });
   });
@@ -520,15 +575,9 @@ function r0() {
 }
 
 function pickRole(id) {
-  const wasEn = isEn();
   S.role = id;
   if (window.FormStore) FormStore.set('position', id);
   S.stepList = buildSteps(id);
-  applyDocumentLocale();
-  if (wasEn !== isEn()) {
-    document.body.classList.add('locale-switching');
-    setTimeout(() => document.body.classList.remove('locale-switching'), 200);
-  }
   renderStep();
   const e = $('roleErr');
   if (e) e.classList.remove('show');
@@ -565,12 +614,12 @@ function r2() {
 function r3() {
   let h = `<div class="step-error" id="stepErr"></div><div class="step-title">${tr('المستندات المطلوبة', 'Required Documents')}</div>`;
   [
-    ['cvFile', tr('السيرة الذاتية', 'CV'), tr('PDF فقط', 'PDF only')],
-    ['photoFile', tr('صورة شخصية', 'Profile photo'), tr('JPG أو PNG', 'JPG or PNG')],
-    ['natidFront', tr('الرقم القومي (أمام)', 'National ID (front)'), tr('JPG أو PNG', 'JPG or PNG')],
-    ['natidBack', tr('الرقم القومي (خلف)', 'National ID (back)'), tr('JPG أو PNG', 'JPG or PNG')],
-  ].forEach(([id, lbl, hint]) => {
-    h += `<div class="field-group"><label class="field-label">${lbl} <span class="req">*</span></label><div class="upload-box"><input type="file" id="${id}" aria-label="${lbl}"/><p>${lbl}</p><small>${hint}</small></div><div class="field-error" id="${id}_err"></div></div>`;
+    ['cvFile',    tr('السيرة الذاتية', 'CV'),                    tr('PDF فقط', 'PDF only'),                    '.pdf,application/pdf'],
+    ['photoFile', tr('صورة شخصية', 'Profile photo'),             tr('JPG، PNG، WEBP فقط', 'JPG, PNG, WEBP only'), '.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp'],
+    ['natidFront',tr('الرقم القومي (أمام)', 'National ID (front)'),tr('JPG، PNG، WEBP فقط', 'JPG, PNG, WEBP only'),'.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp'],
+    ['natidBack', tr('الرقم القومي (خلف)', 'National ID (back)'), tr('JPG، PNG، WEBP فقط', 'JPG, PNG, WEBP only'),'.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp'],
+  ].forEach(([id, lbl, hint, accept]) => {
+    h += `<div class="field-group"><label class="field-label">${lbl} <span class="req">*</span></label><div class="upload-box" data-hint="${hint}"><input type="file" id="${id}" accept="${accept}" aria-label="${lbl}"/><p>${lbl}</p><small>${hint}</small></div><div class="field-error" id="${id}_err"></div></div>`;
   });
   h += navBtns();
   document.getElementById('stepContent').innerHTML = h;

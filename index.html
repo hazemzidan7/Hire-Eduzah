@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl" id="htmlRoot">
+<html lang="en" dir="ltr" id="htmlRoot">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -12,10 +12,13 @@
 <body>
 <div class="wrap">
   <header class="header">
-    <div class="header-brand">
-      <img src="img/logo_1.PNG" alt="Eduzah" class="logo-img" decoding="async" id="siteLogo" />
+    <div class="header-top">
+      <div class="header-brand">
+        <img src="img/logo_1.PNG" alt="Eduzah" class="logo-img" decoding="async" id="siteLogo" />
+      </div>
+      <button id="langToggle" onclick="toggleLang()" class="lang-toggle" type="button">عربي</button>
     </div>
-    <p class="subtitle" id="headerSubtitle">انضم لفريقنا — قدّم على وظيفة</p>
+    <p class="subtitle" id="headerSubtitle">Join our team — Apply for a position</p>
   </header>
   <div class="progress-bar" id="progressBar" role="progressbar" aria-label="Progress"></div>
   <div class="card" id="formCard">
