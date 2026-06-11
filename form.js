@@ -34,6 +34,9 @@ const GOV = ['Alexandria', 'Aswan', 'Asyut', 'Beheira', 'Beni Suef', 'Cairo', 'D
 const SOHAG = ['Akhmim', 'El Balyana', 'Dar El Salam', 'Girga', 'Juhaynah', 'El Mansha', 'El Maragha', 'Saqultah', 'Sohag', 'Tahta', 'Tama'];
 const ALLOW_MANUAL_DOB_EDIT = false;
 
+/** Set to true to close applications — shows a closed message and blocks the form entirely. */
+const APPLICATIONS_CLOSED = true;
+
 let S = { step: 0, role: null, stepList: [], lang: 'en' };
 let natIdAutofillBound = false;
 
@@ -88,6 +91,8 @@ function toggleLang() {
   if (window.FormCollector) FormCollector.snapshotCurrentStep();
   S.lang = S.lang === 'en' ? 'ar' : 'en';
   if (window.FormStore) FormStore.set('_lang', S.lang);
+  applyDocumentLocale();
+  if (APPLICATIONS_CLOSED) { showClosedScreen(); return; }
   renderStep();
 }
 
@@ -904,6 +909,20 @@ function collectFormData(fileUrls) {
   };
 }
 
+function showClosedScreen() {
+  const bar = document.getElementById('progressBar');
+  if (bar) bar.style.display = 'none';
+  document.getElementById('stepContent').innerHTML = `
+    <div style="text-align:center;padding:40px 20px">
+      <div style="font-size:64px;margin-bottom:16px">⏰</div>
+      <h2 style="color:#1a3c5e;margin-bottom:12px">${tr('انتهى وقت التقديم', 'Applications are closed')}</h2>
+      <p style="color:#6b7280;font-size:15px;max-width:420px;margin:0 auto">${tr(
+        'نأسف، انتهت فترة التقديم على هذه الوظائف ولا يمكن استقبال طلبات جديدة حالياً. تابعونا لمعرفة فرص التقديم القادمة.',
+        'Sorry, the application window for these positions has closed and we are no longer accepting new submissions. Please follow us for future opportunities.'
+      )}</p>
+    </div>`;
+}
+
 function showSuccessScreen() {
   document.getElementById('progressBar').style.display = 'none';
   document.getElementById('stepContent').innerHTML = `
@@ -983,4 +1002,8 @@ async function submitForm() {
 
 S.stepList = [0];
 applyDocumentLocale();
-renderStep();
+if (APPLICATIONS_CLOSED) {
+  showClosedScreen();
+} else {
+  renderStep();
+}
