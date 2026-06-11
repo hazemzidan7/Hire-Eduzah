@@ -113,6 +113,12 @@
         </select>
       </div>
       <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">Governorate</label>
+        <select id="govFilter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white" onchange="applyFilters()">
+          <option value="">All governorates</option>
+        </select>
+      </div>
+      <div>
         <label class="block text-xs font-semibold text-gray-500 mb-1">From</label>
         <input id="dateFrom" type="date" class="border border-gray-200 rounded-lg px-3 py-2 text-sm" onchange="applyFilters()" />
       </div>
@@ -331,8 +337,22 @@ function processRows(rows) {
   }));
   document.getElementById('lastRefresh').textContent = 'Updated ' + new Date().toLocaleTimeString();
   document.getElementById('lastRefresh').classList.remove('hidden');
+  populateGovFilter();
   applyFilters();
   renderStats();
+}
+
+// ── Governorate filter options ────────────────────────────────────────────────
+function populateGovFilter() {
+  const sel = document.getElementById('govFilter');
+  const prev = sel.value;
+  const govs = Array.from(new Set(allData.map(r => (r.gov || '').trim()).filter(Boolean)))
+    .sort((a, b) => a.localeCompare(b));
+
+  sel.innerHTML = '<option value="">All governorates</option>' +
+    govs.map(g => `<option value="${esc(g)}">${esc(g)}</option>`).join('');
+
+  if (prev && govs.includes(prev)) sel.value = prev;
 }
 
 async function loadData() {
@@ -363,6 +383,7 @@ function applyFilters() {
   const q    = document.getElementById('searchInput').value.toLowerCase().trim();
   const pos  = document.getElementById('posFilter').value;
   const mode = document.getElementById('modeFilter').value;
+  const gov  = document.getElementById('govFilter').value;
   const from = document.getElementById('dateFrom').value;
   const to   = document.getElementById('dateTo').value;
 
@@ -373,6 +394,7 @@ function applyFilters() {
     if (q && !name.includes(q) && !phone.includes(q) && !email.includes(q)) return false;
     if (pos  && r.position !== pos)   return false;
     if (mode && r.workMode !== mode)  return false;
+    if (gov  && (r.gov || '') !== gov) return false;
     if (from || to) {
       const d = new Date(r.submittedAt || r.Date || '');
       if (from && d < new Date(from)) return false;
@@ -393,7 +415,7 @@ function applyFilters() {
 }
 
 function clearFilters() {
-  ['searchInput','posFilter','modeFilter','dateFrom','dateTo'].forEach(id => {
+  ['searchInput','posFilter','modeFilter','govFilter','dateFrom','dateTo'].forEach(id => {
     const el = document.getElementById(id);
     el.value = '';
   });
